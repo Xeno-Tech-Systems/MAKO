@@ -30,7 +30,7 @@ case "$cmd" in
         echo "Building MAKO (release) → $OUT"
         mkdir -p "$OUT"
         cd "$SRC"
-        dotnet publish -c Release -r linux-x64 --self-contained -o "$OUT"
+        dotnet publish -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o "$OUT"
         echo "Binary: $OUT/mako"
         ;;
 
@@ -38,7 +38,7 @@ case "$cmd" in
         echo "Building MAKO (release) and installing to ~/.local/bin..."
         mkdir -p "$OUT"
         cd "$SRC"
-        dotnet publish -c Release -r linux-x64 --self-contained -o "$OUT"
+        dotnet publish -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o "$OUT"
         mkdir -p ~/.local/bin
         cp "$OUT/mako" ~/.local/bin/mako
         chmod +x ~/.local/bin/mako
