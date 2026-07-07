@@ -31,7 +31,7 @@ case "$cmd" in
         mkdir -p "$OUT"
         cd "$SRC"
         dotnet publish -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o "$OUT"
-        echo "Binary: $OUT/mako"
+        echo "Binary: $OUT/mko"
         ;;
 
     install)
@@ -40,9 +40,9 @@ case "$cmd" in
         cd "$SRC"
         dotnet publish -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o "$OUT"
         mkdir -p ~/.local/bin
-        cp "$OUT/mako" ~/.local/bin/mako
-        chmod +x ~/.local/bin/mako
-        echo "Installed: ~/.local/bin/mako"
+        cp "$OUT/mko" ~/.local/bin/mko
+        chmod +x ~/.local/bin/mko
+        echo "Installed: ~/.local/bin/mko"
         echo "Make sure ~/.local/bin is in your PATH."
         ;;
 

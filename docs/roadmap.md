@@ -24,7 +24,7 @@ This document tracks what has been built and what is planned for future versions
 - [x] `//` line comments
 - [x] Automatic type coercion (string + number, truthy checks)
 - [x] Clean error messages with line numbers
-- [x] `mako run`, `mako version`, `mako help` CLI
+- [x] `mko run`, `mko version`, `mko help` CLI
 
 ---
 
@@ -130,11 +130,11 @@ Built-in modules accessible via `use`:
   name: string = "Alice";
   age:  number = 30;
   ```
-- [ ] `mako check file.mko` — lint and hint validation
-- [ ] `mako fmt file.mko` — auto-formatter
+- [ ] `mko check file.mko` — lint and hint validation
+- [ ] `mko fmt file.mko` — auto-formatter
 - [ ] Official documentation site
 - [ ] Windows and macOS support in official releases
-- [ ] Package manager (`mako add package-name`)
+- [ ] Package manager (`mko add package-name`)
 
 ---
 

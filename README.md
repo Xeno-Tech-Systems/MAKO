@@ -79,8 +79,8 @@ sudo apt install dotnet-sdk-8.0
 git clone https://github.com/AnimatedGTVR/MAKO
 cd MAKO
 
-./build.sh release   # build to bin/mako
-./build.sh install   # build and copy to ~/.local/bin/mako
+./build.sh release   # build to bin/mko
+./build.sh install   # build and copy to ~/.local/bin/mko
 ```
 
 ---
@@ -88,9 +88,9 @@ cd MAKO
 ## Run a program
 
 ```bash
-mako run examples/hello.mko
-mako run examples/loops.mko
-mako run examples/functions.mko
+mko run examples/hello.mko
+mko run examples/loops.mko
+mko run examples/functions.mko
 ```
 
 During development (without installing):

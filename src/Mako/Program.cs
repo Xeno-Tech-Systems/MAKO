@@ -3,9 +3,9 @@ using Mako;
 // ── CLI entry point ───────────────────────────────────────────────────────────
 //
 // Usage:
-//   mako run <file.mko>      run a MAKO script
-//   mako version             print version
-//   mako help                print help
+//   mko run <file.mko>      run a MAKO script
+//   mko version             print version
+//   mko help                print help
 
 if (args.Length == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h")
 {
@@ -23,19 +23,19 @@ if (args[0] == "run")
 {
     if (args.Length < 2)
     {
-        Console.Error.WriteLine("Usage: mako run <file.mko>");
+        Console.Error.WriteLine("Usage: mko run <file.mko>");
         return 1;
     }
 
     string path = args[1];
     if (!File.Exists(path))
     {
-        Console.Error.WriteLine($"mako: file not found: {path}");
+        Console.Error.WriteLine($"mko: file not found: {path}");
         return 1;
     }
     if (!path.EndsWith(".mko", StringComparison.OrdinalIgnoreCase))
     {
-        Console.Error.WriteLine($"mako: file must have a .mko extension");
+        Console.Error.WriteLine($"mko: file must have a .mko extension");
         return 1;
     }
 
@@ -43,7 +43,7 @@ if (args[0] == "run")
     try { source = File.ReadAllText(path); }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"mako: could not read file: {ex.Message}");
+        Console.Error.WriteLine($"mko: could not read file: {ex.Message}");
         return 1;
     }
 
@@ -62,12 +62,12 @@ if (args[0] == "run")
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"mako: internal error: {ex.Message}");
+        Console.Error.WriteLine($"mko: internal error: {ex.Message}");
         return 1;
     }
 }
 
-Console.Error.WriteLine($"mako: unknown command '{args[0]}'. Run 'mako help'.");
+Console.Error.WriteLine($"mko: unknown command '{args[0]}'. Run 'mko help'.");
 return 1;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ return 1;
 //
 //     print greet("World")
 //                         ^
-//   mako: error (line 21): missing ';' (got start of 'print' statement)
+//   mko: error (line 21): missing ';' (got start of 'print' statement)
 //
 // The caret lands on the error's column (or underlines the whole line when the
 // column is unknown). Errors from imported modules show the module's source.
@@ -94,7 +94,7 @@ static void ReportError(MakoError ex, string mainSource)
 
     if (ex.Line <= 0)
     {
-        Console.Error.WriteLine($"mako: error: {ex.RawMessage}");
+        Console.Error.WriteLine($"mko: error: {ex.RawMessage}");
         return;
     }
 
@@ -126,7 +126,7 @@ static void ReportError(MakoError ex, string mainSource)
         Console.Error.WriteLine();
     }
 
-    Console.Error.WriteLine($"mako: error ({where}): {ex.RawMessage}\n");
+    Console.Error.WriteLine($"mko: error ({where}): {ex.RawMessage}\n");
 }
 
 static void PrintHelp()
@@ -135,9 +135,9 @@ static void PrintHelp()
     MAKO 0.02 — a simple, sharp programming language
 
     Usage:
-      mako run <file.mko>   Run a MAKO script
-      mako version          Show version
-      mako help             Show this help
+      mko run <file.mko>   Run a MAKO script
+      mko version          Show version
+      mko help             Show this help
 
     Language features:
       Variables, arithmetic (+  -  *  /  %)
@@ -156,7 +156,7 @@ static void PrintHelp()
       Util:   type  to_num  to_str
 
     Example:
-      mako run examples/hello.mko
+      mko run examples/hello.mko
 
     MAKO files use the .mko extension.
     """);

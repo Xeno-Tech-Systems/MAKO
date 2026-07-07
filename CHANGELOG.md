@@ -134,7 +134,7 @@ verbatim source, which also makes carets inside interpolations land exactly.
 **Interpreter:**
 - Tree-walk interpreter written in C# (.NET 8)
 - Error messages with line numbers
-- `mako run file.mko` CLI
-- `mako version` and `mako help`
+- `mko run file.mko` CLI
+- `mko version` and `mko help`
 
 **Examples:** `hello` `input` `variables` `math` `booleans` `greet` `temperature` `quiz` `shell`

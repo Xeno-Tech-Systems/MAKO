@@ -38,7 +38,7 @@ cd MAKO
 ./build.sh install
 ```
 
-This builds a single self-contained binary and copies it to `~/.local/bin/mako`. Make sure that folder is in your `PATH`:
+This builds a single self-contained binary and copies it to `~/.local/bin/mko`. Make sure that folder is in your `PATH`:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
@@ -48,8 +48,8 @@ source ~/.bashrc
 Verify it works:
 
 ```bash
-mako version   # MAKO 0.02
-mako help
+mko version   # MAKO 0.02
+mko help
 ```
 
 ---
@@ -70,7 +70,7 @@ main() {
 Run it:
 
 ```bash
-mako run hello.mko
+mko run hello.mko
 ```
 
 ---
@@ -78,14 +78,14 @@ mako run hello.mko
 ## 5. Try the examples
 
 ```bash
-mako run examples/hello.mko
-mako run examples/loops.mko
-mako run examples/functions.mko
-mako run examples/lists.mko
-mako run examples/strings.mko
-mako run examples/control.mko
-mako run examples/namespaces.mko
-mako run examples/v02features.mko
+mko run examples/hello.mko
+mko run examples/loops.mko
+mko run examples/functions.mko
+mko run examples/lists.mko
+mko run examples/strings.mko
+mko run examples/control.mko
+mko run examples/namespaces.mko
+mko run examples/v02features.mko
 ```
 
 ---
