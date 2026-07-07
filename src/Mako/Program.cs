@@ -62,9 +62,15 @@ if (args[0] == "run")
             var lines = source.Split('\n');
             if (ex.Line <= lines.Length)
             {
-                var srcLine = lines[ex.Line - 1].TrimStart();
+                var srcLine = lines[ex.Line - 1].TrimStart().TrimEnd();
                 Console.Error.WriteLine($"\n  {srcLine}");
-                Console.Error.WriteLine($"  {new string('^', Math.Max(1, srcLine.Length))}");
+
+                // Missing ';' → ^ at the end showing where it belongs.
+                // Other errors → ^^^ underline the whole line.
+                var pointer = ex.RawMessage.StartsWith("missing ';'")
+                    ? new string(' ', srcLine.Length) + "^"
+                    : new string('^', Math.Max(1, srcLine.Length));
+                Console.Error.WriteLine($"  {pointer}");
             }
             Console.Error.WriteLine($"mako: error (line {ex.Line}): {ex.RawMessage}\n");
         }

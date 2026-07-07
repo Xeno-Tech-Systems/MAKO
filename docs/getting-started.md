@@ -18,7 +18,7 @@ sudo pacman -S dotnet-sdk
 sudo apt install dotnet-sdk-8.0
 ```
 
-**Other Linux / macOS / Windows:**
+**Other Linux / macOS / Windows:**  
 Download from https://dotnet.microsoft.com/download
 
 ---
@@ -32,23 +32,24 @@ cd MAKO
 
 ---
 
-## 3. Build
-
-```bash
-./build.sh release
-```
-
-This produces `bin/mako`. To install it system-wide:
+## 3. Build and install
 
 ```bash
 ./build.sh install
 ```
 
-This copies `mako` to `~/.local/bin`. Make sure that folder is in your `PATH`:
+This builds a single self-contained binary and copies it to `~/.local/bin/mako`. Make sure that folder is in your `PATH`:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
+```
+
+Verify it works:
+
+```bash
+mako version   # MAKO 0.02
+mako help
 ```
 
 ---
@@ -61,7 +62,8 @@ Create a file called `hello.mko`:
 script "Hello";
 
 main() {
-    print "Hello from MAKO";
+    name = input "What's your name? ";
+    print "Hello, {name}! Welcome to MAKO.";
 }
 ```
 
@@ -71,32 +73,99 @@ Run it:
 mako run hello.mko
 ```
 
-Output:
-
-```
-Hello from MAKO
-```
-
 ---
 
 ## 5. Try the examples
 
 ```bash
 mako run examples/hello.mko
-mako run examples/input.mko
-mako run examples/math.mko
-mako run examples/variables.mko
-mako run examples/greet.mko
-mako run examples/booleans.mko
-mako run examples/temperature.mko
-mako run examples/quiz.mko
-mako run examples/shell.mko
+mako run examples/loops.mko
+mako run examples/functions.mko
+mako run examples/lists.mko
+mako run examples/strings.mko
+mako run examples/control.mko
+mako run examples/namespaces.mko
+mako run examples/v02features.mko
 ```
 
 ---
 
-## 6. What's next
+## 6. Key syntax at a glance
 
-Read the [Language Reference](language-reference.md) to learn everything MAKO can do in v0.1.
+```mako
+script "Demo";
 
-Check the [Roadmap](roadmap.md) to see what is coming.
+fn greet(name) {
+    return "Hello, {name}!";
+}
+
+main() {
+    # variables
+    x     = 42;
+    const PI = 3.14159;
+
+    # string interpolation
+    print "x = {x}, PI = {PI}";
+
+    # if / else
+    if x > 10 {
+        print "big number";
+    } else {
+        print "small number";
+    }
+
+    # while loop
+    i = 0;
+    while i < 3 {
+        print "i = {i}";
+        i += 1;
+    }
+
+    # for loop with range
+    for n in range(1, 4) {
+        print n;
+    }
+
+    # lists
+    fruits = ["apple", "banana", "cherry"];
+    for fruit in fruits {
+        print upper(fruit);
+    }
+
+    # functions
+    print greet("World");
+}
+```
+
+---
+
+## 7. Splitting code into modules
+
+Create a library file:
+
+```mako
+// utils.mko
+namespace Utils;
+
+fn shout(msg) {
+    return upper(msg) + "!!!";
+}
+```
+
+Use it from your main script:
+
+```mako
+script "My App";
+use "utils.mko";
+
+main() {
+    print Utils.shout("hello");   // HELLO!!!
+}
+```
+
+---
+
+## 8. What's next
+
+- [Language Reference](language-reference.md) — complete v0.02 spec
+- [Roadmap](roadmap.md) — what is planned for v0.03 and beyond

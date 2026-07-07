@@ -239,7 +239,6 @@ class Parser
 
     private BreakStmt ParseBreak()
     {
-        int line = Current().Line;
         Advance();
         Expect(TokenType.Semicolon, "Expected ';' after break");
         return new BreakStmt();
@@ -507,7 +506,32 @@ class Parser
     private Token Expect(TokenType type, string message)
     {
         if (!Check(type))
-            throw new MakoError($"{message} (got '{Current().Value}')", Current().Line);
+        {
+            // For a missing ';', blame the line that should have had it,
+            // not the next token that surprised us.
+            int errLine = (type == TokenType.Semicolon && _pos > 0)
+                ? Previous().Line
+                : Current().Line;
+
+            string errMsg = type == TokenType.Semicolon
+                ? $"missing ';' (got {DescribeToken(Current())})"
+                : $"{message} (got '{Current().Value}')";
+
+            throw new MakoError(errMsg, errLine);
+        }
         return Advance();
     }
+
+    private static string DescribeToken(Token tok) => tok.Type switch
+    {
+        TokenType.Print or TokenType.Printnl or TokenType.If   or TokenType.While or
+        TokenType.For   or TokenType.Fn      or TokenType.Return or TokenType.Break or
+        TokenType.Continue or TokenType.Run  or TokenType.Const or TokenType.Identifier
+            => $"start of '{tok.Value}' statement",
+        TokenType.RBrace => "end of block '}'",
+        TokenType.Eof    => "end of file",
+        _                => $"'{tok.Value}'",
+    };
+
+    private Token Previous() => _pos > 0 ? _tokens[_pos - 1] : _tokens[0];
 }

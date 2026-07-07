@@ -63,7 +63,7 @@ class Lexer
             if (c == '\n') { _line++; _pos++; continue; }
             if (char.IsWhiteSpace(c)) { _pos++; continue; }
 
-            if (c == '/' && Peek(1) == '/')
+            if (c == '/' && Peek(1) == '/' || c == '#')
             {
                 while (_pos < _src.Length && _src[_pos] != '\n') _pos++;
                 continue;
