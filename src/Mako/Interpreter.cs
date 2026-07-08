@@ -186,11 +186,14 @@ class Interpreter
                 break;
 
             case IndexAssignStmt ia:
-                var listTarget = GetVar(ia.Name);
-                if (listTarget is not List<object?> lst)
+                var indexTarget = GetVar(ia.Name);
+                if (indexTarget is List<object?> lst)
+                    lst[NormalizeIndex((int)ToNumber(Eval(ia.Index)), lst.Count)] = Eval(ia.Value);
+                else if (indexTarget is Dictionary<string, object?> dictTarget)
+                    dictTarget[Stringify(Eval(ia.Index))] = Eval(ia.Value);
+                else
                     throw new MakoError(
-                        $"cannot assign by index into {TypeName(listTarget)} — '{ia.Name}' must be a list");
-                lst[NormalizeIndex((int)ToNumber(Eval(ia.Index)), lst.Count)] = Eval(ia.Value);
+                        $"cannot assign by index into {TypeName(indexTarget)} — '{ia.Name}' must be a list or dict");
                 break;
 
             case IfStmt i:
@@ -212,8 +215,13 @@ class Interpreter
 
             case ForStmt f:
                 var iterable = Eval(f.Iterable);
-                if (iterable is not List<object?> items)
-                    throw new MakoError($"'for' needs a list to loop over, got {TypeName(iterable)}"
+                List<object?> items;
+                if (iterable is List<object?> lst2)
+                    items = lst2;
+                else if (iterable is Dictionary<string, object?> iterDict)
+                    items = iterDict.Keys.Select(k => (object?)k).ToList();
+                else
+                    throw new MakoError($"'for' needs a list or dict to loop over, got {TypeName(iterable)}"
                         + (iterable is string ? " — to loop over characters, use split(text, \"\")" : "")
                         + (iterable is double ? " — to loop over numbers, use range(n)" : ""));
                 try
@@ -276,6 +284,7 @@ class Interpreter
         BoolLit b            => b.Value,
         NullLit              => null,
         ListLit l            => l.Items.ConvertAll(Eval),
+        DictLit d            => EvalDict(d),
         IdentExpr id         => GetVar(id.Name),
         IndexExpr ix         => EvalIndex(ix),
         InputExpr inp        => ReadInput(Stringify(Eval(inp.Prompt))),
@@ -287,16 +296,31 @@ class Interpreter
         _                    => throw new MakoError($"Unknown expression type: {expr.GetType().Name}"),
     };
 
+    private Dictionary<string, object?> EvalDict(DictLit d)
+    {
+        var result = new Dictionary<string, object?>();
+        foreach (var (keyExpr, valExpr) in d.Entries)
+            result[Stringify(Eval(keyExpr))] = Eval(valExpr);
+        return result;
+    }
+
     private object? EvalIndex(IndexExpr ix)
     {
         var target = Eval(ix.Target);
         var index  = Eval(ix.Index);
+        if (target is Dictionary<string, object?> dict)
+        {
+            var key = Stringify(index);
+            if (!dict.TryGetValue(key, out var dv))
+                throw new MakoError($"dict has no key '{key}'");
+            return dv;
+        }
         if (index is not double dIdx)
             throw new MakoError($"list index must be a number, got {TypeName(index)} '{Short(index)}'");
         var raw = (int)dIdx;
         if (target is List<object?> list) return list[NormalizeIndex(raw, list.Count, "list")];
         if (target is string s)           return s[NormalizeIndex(raw, s.Length, "string")].ToString();
-        throw new MakoError($"cannot index into {TypeName(target)} — only lists and strings can be indexed");
+        throw new MakoError($"cannot index into {TypeName(target)} — only lists, dicts, and strings support indexing");
     }
 
     private object? EvalUnary(UnaryExpr u)
@@ -416,6 +440,8 @@ class Interpreter
         "len", "upper", "lower", "trim", "contains", "starts_with", "ends_with",
         "replace", "split", "join",
         "push", "pop", "first", "last", "reverse", "has",
+        // Dict builtins
+        "keys", "values", "remove", "merge", "get",
         // I/O & system stdlib
         "read", "write", "append", "exists", "delete", "lines",
         "time", "random", "random_int", "sleep", "env",
@@ -516,9 +542,10 @@ class Interpreter
                 RequireArity(name, args, 1);
                 result = args[0] switch
                 {
-                    string s        => (double)s.Length,
-                    List<object?> l => (double)l.Count,
-                    _ => throw new MakoError($"len() expects a string or list, got '{TypeName(args[0])}'"),
+                    string s                      => (double)s.Length,
+                    List<object?> l               => (double)l.Count,
+                    Dictionary<string, object?> d => (double)d.Count,
+                    _ => throw new MakoError($"len() expects a string, list, or dict, got '{TypeName(args[0])}'"),
                 };
                 return true;
 
@@ -570,7 +597,41 @@ class Interpreter
 
             case "has":
                 RequireArity(name, args, 2);
-                result = AsList(name, args[0]).Any(v => ValuesEqual(v, args[1]));
+                if (args[0] is Dictionary<string, object?> hasDct)
+                    result = (object?)hasDct.ContainsKey(Stringify(args[1]));
+                else
+                    result = (object?)AsList(name, args[0]).Any(v => ValuesEqual(v, args[1]));
+                return true;
+
+            // ── Dict builtins ─────────────────────────────────────────────────
+            case "keys":
+                RequireArity(name, args, 1);
+                result = AsDict(name, args[0]).Keys.Select(k => (object?)k).ToList();
+                return true;
+
+            case "values":
+                RequireArity(name, args, 1);
+                result = AsDict(name, args[0]).Values.ToList();
+                return true;
+
+            case "remove":
+                RequireArity(name, args, 2);
+                result = (object?)AsDict(name, args[0]).Remove(Stringify(args[1]));
+                return true;
+
+            case "merge":
+                if (args.Count < 2) throw new MakoError("merge() expects at least 2 dicts");
+                var merged = new Dictionary<string, object?>();
+                foreach (var a in args)
+                    foreach (var kv in AsDict(name, a))
+                        merged[kv.Key] = kv.Value;
+                result = merged; return true;
+
+            case "get":
+                if (args.Count < 2 || args.Count > 3) throw new MakoError("get() expects 2 or 3 arguments (dict, key [, default])");
+                var getDict = AsDict(name, args[0]);
+                var getKey  = Stringify(args[1]);
+                result = getDict.TryGetValue(getKey, out var getVal) ? getVal : (args.Count == 3 ? args[2] : null);
                 return true;
 
             // ── I/O stdlib ────────────────────────────────────────────────────
@@ -942,6 +1003,9 @@ class Interpreter
     private static string       AsStr(string fn, object? v) =>
         v is string s ? s : throw new MakoError($"{fn}() expects a string, got {TypeName(v)} '{Short(v)}'");
     private static bool AsBool(object? v) => Truthy(v);
+    private static Dictionary<string, object?> AsDict(string fn, object? v) =>
+        v is Dictionary<string, object?> d ? d
+            : throw new MakoError($"{fn}() expects a dict, got {TypeName(v)} '{Short(v)}'");
     private static List<object?> AsList(string fn, object? v) =>
         v is List<object?> l ? l : throw new MakoError($"{fn}() expects a list, got {TypeName(v)} '{Short(v)}'");
     private static double AsNum(string fn, object? v)
@@ -1062,12 +1126,13 @@ class Interpreter
 
     private static string TypeName(object? val) => val switch
     {
-        null          => "none",
-        bool          => "bool",
-        double        => "number",
-        string        => "string",
-        List<object?> => "list",
-        _             => "unknown",
+        null                          => "none",
+        bool                          => "bool",
+        double                        => "number",
+        string                        => "string",
+        List<object?>                 => "list",
+        Dictionary<string, object?>   => "dict",
+        _                             => "unknown",
     };
 
     public static string Stringify(object? val) => val switch
@@ -1079,6 +1144,15 @@ class Interpreter
                          : d.ToString(System.Globalization.CultureInfo.InvariantCulture),
         string s      => s,
         List<object?> l => "[" + string.Join(", ", l.Select(Stringify)) + "]",
+        Dictionary<string, object?> d =>
+            "{" + string.Join(", ", d.Select(kv => $"\"{kv.Key}\": {StringifyValue(kv.Value)}")) + "}",
         _             => val.ToString() ?? "none",
+    };
+
+    // Like Stringify but quotes strings so dict/list printouts are unambiguous.
+    private static string StringifyValue(object? val) => val switch
+    {
+        string s => $"\"{s}\"",
+        _        => Stringify(val),
     };
 }

@@ -52,6 +52,7 @@ enum TokenType
     RBracket,  // ]
     Semicolon, // ;
     Comma,     // ,
+    Colon,     // :
 
     Eof,
 }

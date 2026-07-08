@@ -95,6 +95,9 @@ record NullLit() : Expr;
 /// [1, 2, 3]
 record ListLit(List<Expr> Items) : Expr;
 
+/// {"key": value, ...}
+record DictLit(List<(Expr Key, Expr Value)> Entries) : Expr;
+
 /// a variable name
 record IdentExpr(string Name) : Expr;
 

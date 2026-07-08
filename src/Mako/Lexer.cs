@@ -143,6 +143,7 @@ class Lexer
             ']' => Tok(TokenType.RBracket,  "]",  line, col),
             ';' => Tok(TokenType.Semicolon, ";",  line, col),
             ',' => Tok(TokenType.Comma,     ",",  line, col),
+            ':' => Tok(TokenType.Colon,     ":",  line, col),
             _   => throw UnexpectedChar(c, line, col),
         };
     }

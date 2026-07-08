@@ -489,6 +489,30 @@ class Parser
             return new ListLit(items);
         }
 
+        // Dict literal: {"key": value, ...}
+        if (Check(TokenType.LBrace))
+        {
+            var openBr = Advance(); // {
+            var entries = new List<(Expr Key, Expr Value)>();
+            while (!Check(TokenType.RBrace) && !Check(TokenType.Eof))
+            {
+                var key = ParseExpr();
+                Expect(TokenType.Colon, "expected ':' after dict key");
+                var val = ParseExpr();
+                entries.Add((key, val));
+                if (Check(TokenType.Comma)) { Advance(); continue; }
+                if (!Check(TokenType.RBrace) && !Check(TokenType.Eof))
+                {
+                    var prev = Previous();
+                    throw new MakoError(
+                        $"missing ',' or '}}' between dict entries (got {DescribeToken(Current())})",
+                        prev.EndLine, prev.EndCol);
+                }
+            }
+            ExpectClosing(TokenType.RBrace, "}", openBr);
+            return new DictLit(entries) { Line = openBr.Line, Col = openBr.Col };
+        }
+
         if (Check(TokenType.Input))
         {
             Advance();
