@@ -36,6 +36,9 @@ static class MakoRay
         // Disable raylib's built-in ESC-to-quit: scripts decide when to exit.
         // (A stray ESC event on window focus was closing windows instantly.)
         Raylib.SetExitKey(KeyboardKey.Null);
+        // Grab keyboard focus — under Wayland/Hyprland a new XWayland window
+        // doesn't always take focus, leaving keys going to the terminal.
+        Raylib.SetWindowFocused();
         return null;
     }
 

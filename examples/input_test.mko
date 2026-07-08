@@ -1,0 +1,68 @@
+using Mako2D;
+using Inputs;
+
+# Input test — shows live input state on screen.
+# Press keys, click, scroll: anything the window receives lights up green.
+
+fn state_color(active) {
+    if active { return Mako2D.LIME; }
+    return Mako2D.DARKGRAY;
+}
+
+main() {
+    Mako2D.init(640, 480, "MAKO Input Test");
+    Mako2D.fps(60);
+
+    last = "";
+    scroll_total = 0;
+
+    while Mako2D.running() {
+        k = Inputs.last_key();
+        if k != "" { last = k; }
+        scroll_total = scroll_total + Inputs.scroll();
+
+        Mako2D.begin();
+        Mako2D.clear(Mako2D.color(20, 20, 26));
+
+        Mako2D.text("MAKO Input Test — press keys / click / scroll", 16, 12, 18, Mako2D.WHITE);
+        Mako2D.text("If nothing lights up, the window has no keyboard focus — click it once.", 16, 36, 13, Mako2D.LIGHTGRAY);
+
+        # WASD block
+        Mako2D.text("W", 76, 90, 28, state_color(Inputs.key_down("W")));
+        Mako2D.text("A", 40, 130, 28, state_color(Inputs.key_down("A")));
+        Mako2D.text("S", 76, 130, 28, state_color(Inputs.key_down("S")));
+        Mako2D.text("D", 112, 130, 28, state_color(Inputs.key_down("D")));
+
+        # Arrows block
+        Mako2D.text("UP", 250, 90, 28, state_color(Inputs.key_down("UP")));
+        Mako2D.text("LT", 200, 130, 28, state_color(Inputs.key_down("LEFT")));
+        Mako2D.text("DN", 250, 130, 28, state_color(Inputs.key_down("DOWN")));
+        Mako2D.text("RT", 300, 130, 28, state_color(Inputs.key_down("RIGHT")));
+
+        # Modifiers + space
+        Mako2D.text("SPACE", 400, 90, 24, state_color(Inputs.key_down("SPACE")));
+        Mako2D.text("SHIFT", 400, 124, 24, state_color(Inputs.key_down("SHIFT")));
+        Mako2D.text("CTRL",  400, 158, 24, state_color(Inputs.key_down("CTRL")));
+        Mako2D.text("ESC",   400, 192, 24, state_color(Inputs.key_down("ESCAPE")));
+
+        # Mouse buttons
+        Mako2D.text("LMB", 40, 220, 24, state_color(Inputs.mouse_down("left")));
+        Mako2D.text("MMB", 110, 220, 24, state_color(Inputs.mouse_down("middle")));
+        Mako2D.text("RMB", 180, 220, 24, state_color(Inputs.mouse_down("right")));
+
+        # Live values
+        mx = Inputs.mouse_x();
+        my = Inputs.mouse_y();
+        Mako2D.text("mouse: {mx}, {my}", 16, 280, 18, Mako2D.SKYBLUE);
+        Mako2D.text("scroll total: {scroll_total}", 16, 306, 18, Mako2D.SKYBLUE);
+        Mako2D.text("last key event: {last}", 16, 332, 18, Mako2D.GOLD);
+
+        # Mouse-follow dot
+        Mako2D.circle(mx, my, 6, Mako2D.PINK);
+
+        Mako2D.draw_fps(560, 12);
+        Mako2D.end();
+    }
+
+    Mako2D.close();
+}
