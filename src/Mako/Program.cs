@@ -369,14 +369,29 @@ static void PrintHelp()
     """);
 }
 
-// Resolve a script path: try as-is, then relative to ~/.local/share/mko/
+// Resolve a script path: try as-is, then search ~/.local/share/mko/
 static string? ResolvePath(string input)
 {
     if (File.Exists(input)) return input;
-    // Try ~/.local/share/mko/<input>
-    var global = Path.Combine(
+
+    var mkoData = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ".local", "share", "mko", input);
-    if (File.Exists(global)) return global;
+        ".local", "share", "mko");
+
+    // Search subdirectories: mko/<input>, mko/examples/<input>, mko/scripts/<input>
+    foreach (var prefix in new[] { "", "examples", "scripts" })
+    {
+        var candidate = prefix == ""
+            ? Path.Combine(mkoData, input)
+            : Path.Combine(mkoData, prefix, input);
+        if (File.Exists(candidate)) return candidate;
+
+        // Also try with .mko extension appended if not already present
+        if (!input.EndsWith(".mko", StringComparison.OrdinalIgnoreCase))
+        {
+            var withExt = candidate + ".mko";
+            if (File.Exists(withExt)) return withExt;
+        }
+    }
     return null;
 }
