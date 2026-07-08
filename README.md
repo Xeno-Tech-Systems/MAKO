@@ -1,10 +1,40 @@
+
 # MAKO
 
-**A simple, sharp programming language — with a game engine built in.**
+**A simple, sharp programming language — with game engine tools built in.**
 
-MAKO blends the readability of Python, the simplicity of Lua, and the structure of C-style languages. Write a script, run it with `mko`, and you have windows, 3D graphics, synthesized sound, and monster AI — no project files, no build step, no asset pipeline required.
+MAKO blends the readability of Python, the simplicity of Lua, and the structure of C-style languages. Write a script, run it with `mko`, and you have windows, 2D/3D graphics, synthesized sound, input, UI, and early game logic tools — no project files, no build step, no asset pipeline required.
 
-> **Status:** v0.03 — dicts, lambdas, try/catch, formatter, REPL, packages, and five native packages: **MakoUI**, **Mako2D**, **Mako3D**, **Inputs**, **Audio**.
+> **Status:** v0.03 alpha — dicts, lambdas, try/catch, formatter, REPL, packages, and native packages: **MakoUI**, **Mako2D**, **Mako3D**, **Inputs**, and **Audio**.
+>
+> MAKO is still experimental. Syntax, APIs, packages, and examples may change before the first official release, **v0.1.0**.
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="Images/screenshot-2026-07-08_02-16-27.png" alt="Mako3D demo" width="45%">
+  <img src="Images/screenshot-2026-07-08_02-16-59.png" alt="MakoUI demo" width="45%">
+</p>
+
+<p align="center">
+  <img src="Images/screenshot-2026-07-08_02-17-26.png" alt="Mako3D shapes and lighting" width="45%">
+  <img src="Images/screenshot-2026-07-08_02-17-34.png" alt="Mako2D rendering demo" width="45%">
+</p>
+
+<p align="center">
+  <img src="Images/screenshot-2026-07-08_02-17-54.png" alt="Mako3D arena demo" width="45%">
+  <img src="Images/screenshot-2026-07-08_02-18-14.png" alt="MAKO game demo" width="45%">
+</p>
+
+<p align="center">
+  <img src="Images/screenshot-2026-07-08_02-18-34.png" alt="MAKO audio or UI demo" width="70%">
+</p>
+
+---
+
+## Example
 
 ```mako
 using Mako2D;
@@ -14,12 +44,18 @@ using Audio;
 main() {
     Mako2D.init(800, 600, "My Game");
     Mako2D.fps(60);
-    beep = Audio.tone("square", 440, 0.1);   # synthesized — no sound files
+
+    beep = Audio.tone("square", 440, 0.1); # synthesized — no sound files
     x = 400;
 
     while Mako2D.running() {
-        if Inputs.key_down("RIGHT") { x = x + 300 * Mako2D.delta(); }
-        if Inputs.key_pressed("SPACE") { Audio.play(beep); }
+        if Inputs.key_down("RIGHT") {
+            x = x + 300 * Mako2D.delta();
+        }
+
+        if Inputs.key_pressed("SPACE") {
+            Audio.play(beep);
+        }
 
         Mako2D.begin();
         Mako2D.clear(Mako2D.BLACK);
@@ -27,7 +63,7 @@ main() {
         Mako2D.end();
     }
 }
-```
+````
 
 ---
 
@@ -49,60 +85,77 @@ cd MAKO
 ./build.sh install
 ```
 
-That installs `mko` to `~/.local/bin` (plus native libs and all examples). Then, from anywhere:
+That installs `mko` to `~/.local/bin`, along with native libraries and examples.
+
+Then, from anywhere:
 
 ```bash
-mko hello.mko          # examples resolve from anywhere
-mko pong.mko           # play Pong
-mko repl               # interactive REPL
+mko hello.mko
+mko pong.mko
+mko repl
 ```
 
 Scripts can also be made executable directly:
 
 ```mako
 #!/usr/bin/env mko
-main() { print "hello!"; }
+
+main() {
+    print "hello!";
+}
 ```
+
+---
 
 ## Try the games
 
-All examples install globally — run these from any directory:
+All examples install globally. Run these from any directory:
 
-| Command | What it is |
-|---|---|
-| `mko pong.mko` | Pong vs an AI paddle — synth sound, positional audio |
-| `mko snake.mko` | Snake — speeds up as you grow, pitch-shifting eat sound |
-| `mko gem_hunter.mko` | 3D arena collector — camera follow, patrol enemies, navigate by ear |
-| `mko monster_maze.mko` | **Stealth game** — monster AI with a vision cone, hearing, A* pathfinding |
-| `mko music_maker.mko` | Playable synth piano — 5 waveforms, bake melodies from note lists |
-| `mko settings.mko` | FPS overlay + graph, audio sliders, FPS cap selector |
-| `mko ui_demo.mko` | Dear ImGui desktop UI — menus, tables, modals, cherry-blossom theme |
-| `mko sound_3d.mko` | 3D positional audio — beacons that pan and fade as you fly |
-| `mko input_test.mko` | Visual input tester — every key/button lights up live |
+| Command                | What it is                                                               |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `mko pong.mko`         | Pong vs an AI paddle — synth sound and positional audio                  |
+| `mko snake.mko`        | Snake — speeds up as you grow with pitch-shifting eat sound              |
+| `mko gem_hunter.mko`   | 3D arena collector — camera follow, patrol enemies, and audio navigation |
+| `mko monster_maze.mko` | Stealth game — monster AI with vision cone, hearing, and A* pathfinding  |
+| `mko music_maker.mko`  | Playable synth piano — 5 waveforms and melody baking                     |
+| `mko settings.mko`     | FPS overlay, graph, audio sliders, and FPS cap selector                  |
+| `mko ui_demo.mko`      | Dear ImGui desktop UI — menus, tables, modals, cherry-blossom theme      |
+| `mko sound_3d.mko`     | 3D positional audio — beacons that pan and fade as you fly               |
+| `mko input_test.mko`   | Visual input tester — every key/button lights up live                    |
+
+---
 
 ## The language in 60 seconds
 
 ```mako
-script "Tour";                       # optional script header
+script "Tour";
 
-const MAX = 100;                     # top-level constants
+const MAX = 100;
 
-fn greet(name) {                     # functions
-    return "Hello, {name}!";         # string interpolation
+fn greet(name) {
+    return "Hello, {name}!";
 }
 
 main() {
     # Types: numbers, strings, booleans, none, lists, dicts
     nums = [3, 1, 2];
-    user = {"name": "Robin", "score": 42};
+    user = {
+        "name": "Robin",
+        "score": 42
+    };
 
     # Lambdas + higher-order builtins
     doubled = map(nums, fn(x) => x * 2);
     big = filter(nums, fn(x) => x > 1);
 
     # Control flow
-    for n in nums { print n; }
-    while user["score"] < MAX { user["score"] = user["score"] + 10; }
+    for n in nums {
+        print n;
+    }
+
+    while user["score"] < MAX {
+        user["score"] = user["score"] + 10;
+    }
 
     # Error handling
     try {
@@ -120,67 +173,305 @@ main() {
 
 Errors point at the problem and suggest fixes:
 
-```
+```txt
   print greeet("World");
         ^^^^^^
 mko: error (line 4): function 'greeet' wasn't found
   hint: did you mean 'greet'?
 ```
 
+---
+
 ## CLI
 
-| Command | Does |
-|---|---|
-| `mko <file.mko>` / `mko run <file>` | Run a script |
-| `mko repl` | Interactive REPL |
-| `mko fmt <file>` [`--check`] | Format source (preserves comments) |
-| `mko get <pkg> [github:User/Repo]` | Install a package |
-| `mko list` / `mko cache clear` | Manage installed packages |
+| Command                                     | Does                                    |
+| ------------------------------------------- | --------------------------------------- |
+| `mko <file.mko>` / `mko run <file>`         | Run a script                            |
+| `mko repl`                                  | Interactive REPL                        |
+| `mko fmt <file>` / `mko fmt <file> --check` | Format source while preserving comments |
+| `mko get <pkg> [github:User/Repo]`          | Install a package                       |
+| `mko list`                                  | List installed packages                 |
+| `mko cache clear`                           | Clear the package cache                 |
 
-Packages come from GitHub with one line:
+Packages can come from GitHub:
 
 ```mako
 using mylib from "github:User/Repo";
 ```
 
+---
+
 ## Native packages
 
-| Package | What it gives you |
-|---|---|
-| `using Mako2D;` | 2D games: sprites, spritesheets, Camera2D, shapes, text |
-| `using Mako3D;` | 3D games: Camera3D (fly/orbit controls built in), cubes/spheres/models, grid |
-| `using Inputs;` | Unified input: keyboard, mouse, cursor lock, gamepad |
-| `using Audio;` | Sound files + **synthesizer** (5 waveforms, note names, melody baking), music streaming, **2D/3D positional sound**, 8-voice polyphony |
-| `using MakoUI;` | Desktop UIs via Dear ImGui: windows, menus, tables, modals, themes |
+| Package         | What it gives you                                                                    |
+| --------------- | ------------------------------------------------------------------------------------ |
+| `using Mako2D;` | 2D games: sprites, spritesheets, Camera2D, shapes, text                              |
+| `using Mako3D;` | 3D games: Camera3D, fly/orbit controls, cubes, spheres, models, grid                 |
+| `using Inputs;` | Unified input: keyboard, mouse, cursor lock, gamepad                                 |
+| `using Audio;`  | Sound files, synthesizer, music streaming, 2D/3D positional sound, 8-voice polyphony |
+| `using MakoUI;` | Desktop UIs via Dear ImGui: windows, menus, tables, modals, themes                   |
 
-Game-dev builtins are always available — no import needed:
+Game-dev builtins are available without an import:
 
 ```mako
-clamp(v, 0, 10)   lerp(a, b, t)   dist(x1,y1, x2,y2)   sin/cos/atan2/pi
-rects_overlap(...)   circles_overlap(...)   point_in_rect(...)
-find_path(grid, sx,sy, ex,ey)     # A* pathfinding
-line_of_sight(grid, x1,y1, x2,y2) # wall-aware visibility
+clamp(v, 0, 10)
+lerp(a, b, t)
+dist(x1, y1, x2, y2)
+sin(x)
+cos(x)
+atan2(y, x)
+pi()
+
+rects_overlap(...)
+circles_overlap(...)
+point_in_rect(...)
+
+find_path(grid, sx, sy, ex, ey)
+line_of_sight(grid, x1, y1, x2, y2)
 ```
+
+---
+
+## MakoUI
+
+MakoUI is MAKO’s GUI layer, powered by Dear ImGui.
+
+It is built for:
+
+* tools
+* editors
+* debug panels
+* tables
+* menus
+* modals
+* quick app interfaces
+
+Example:
+
+```mako
+using MakoUI;
+
+main() {
+    MakoUI.init("MakoUI Demo", 900, 600);
+
+    count = 0;
+
+    while MakoUI.running() {
+        MakoUI.begin();
+
+        MakoUI.begin_window("Counter");
+
+        MakoUI.text("Count: {count}");
+
+        if MakoUI.button("Increment") {
+            count = count + 1;
+        }
+
+        if MakoUI.button("Reset") {
+            count = 0;
+        }
+
+        MakoUI.end_window();
+
+        MakoUI.end();
+    }
+}
+```
+
+---
+
+## Mako2D
+
+Mako2D is MAKO’s 2D rendering package.
+
+It is built for:
+
+* 2D games
+* sprites
+* shapes
+* tilemaps
+* camera movement
+* simple visual tools
+* game prototypes
+
+Example:
+
+```mako
+using Mako2D;
+using Inputs;
+
+main() {
+    Mako2D.init(800, 600, "Mako2D Demo");
+    Mako2D.fps(60);
+
+    x = 400;
+    y = 300;
+    speed = 250;
+
+    while Mako2D.running() {
+        dt = Mako2D.delta();
+
+        if Inputs.key_down("RIGHT") { x = x + speed * dt; }
+        if Inputs.key_down("LEFT")  { x = x - speed * dt; }
+        if Inputs.key_down("DOWN")  { y = y + speed * dt; }
+        if Inputs.key_down("UP")    { y = y - speed * dt; }
+
+        Mako2D.begin();
+        Mako2D.clear(Mako2D.BLACK);
+
+        Mako2D.circle(x, y, 24, Mako2D.SKYBLUE);
+        Mako2D.text("Arrow keys to move", 10, 10, 20, Mako2D.WHITE);
+
+        Mako2D.end();
+    }
+
+    Mako2D.close();
+}
+```
+
+---
+
+## Mako3D
+
+Mako3D is MAKO’s 3D rendering package.
+
+It is built for:
+
+* 3D scenes
+* cameras
+* cubes
+* spheres
+* models
+* lighting
+* raycasts
+* simple game AI
+* 3D experiments
+
+Example:
+
+```mako
+using Mako3D;
+using Inputs;
+
+main() {
+    Mako3D.init(800, 600, "Mako3D Demo");
+    Mako3D.fps(60);
+
+    cam = Mako3D.camera(10, 8, 10, 0, 0, 0);
+
+    while Mako3D.running() {
+        Mako3D.update_camera(cam, 8);
+
+        if Inputs.key_pressed("ESCAPE") {
+            Mako3D.close();
+        }
+
+        Mako3D.begin();
+        Mako3D.clear(Mako3D.color(18, 18, 28));
+
+        Mako3D.begin_3d(cam);
+
+        Mako3D.grid(20, 1);
+        Mako3D.cube(0, 1, 0, 2, 2, 2, Mako3D.RED);
+        Mako3D.sphere(4, 1.5, 0, 1.5, Mako3D.SKYBLUE);
+
+        Mako3D.end_3d();
+
+        Mako3D.text("WASD/arrows + middle mouse camera", 10, 10, 16, Mako3D.WHITE);
+
+        Mako3D.end();
+    }
+
+    Mako3D.close();
+}
+```
+
+---
+
+## Audio
+
+MAKO includes an early audio package for sound effects, synthesis, music, and positional audio.
+
+Example:
+
+```mako
+using Audio;
+
+main() {
+    Audio.init();
+
+    beep = Audio.tone("square", 440, 0.1);
+    Audio.play(beep);
+
+    Audio.close();
+}
+```
+
+Audio supports early ideas like:
+
+* sound playback
+* synthesized tones
+* waveforms
+* melody baking
+* music streaming
+* 2D/3D positional sound
+* basic polyphony
+
+---
+
+## Project goals
+
+MAKO is designed around a few simple rules:
+
+* Easy to learn like Python
+* Easy to remember like Lua/Luau
+* Structured like C-style languages
+* Easy to type on a normal keyboard
+* Useful for real scripts and tools
+* Powerful enough to grow into rendering, audio, UI, networking, and engine-style workflows
+* Small core, expandable packages
+
+MAKO is not trying to replace large engines like Modularity. The goal is to make MAKO a lightweight language and toolkit for experiments, small games, tools, and fast ideas.
+
+---
 
 ## Documentation
 
-- [Language reference](docs/language.md) — syntax, types, control flow, functions, modules
-- [Standard library](docs/stdlib.md) — every builtin function
-- [CLI](docs/cli.md) — every `mko` command
-- [Mako2D](docs/mako2d.md) · [Mako3D](docs/mako3d.md) · [Inputs](docs/inputs.md) · [Audio](docs/audio.md) · [MakoUI](docs/makoui.md)
-- [Game development guide](docs/games.md) — delta time, collision, AI patterns, positional audio
+* [Language reference](docs/language.md) — syntax, types, control flow, functions, modules
+* [Standard library](docs/stdlib.md) — every builtin function
+* [CLI](docs/cli.md) — every `mko` command
+* [Mako2D](docs/mako2d.md)
+* [Mako3D](docs/mako3d.md)
+* [Inputs](docs/inputs.md)
+* [Audio](docs/audio.md)
+* [MakoUI](docs/makoui.md)
+* [Game development guide](docs/games.md) — delta time, collision, AI patterns, positional audio
+
+---
 
 ## Building from source
 
 ```bash
-./build.sh dev        # debug build
-./build.sh release    # optimized single-file binary → bin/
-./build.sh install    # release build + install to ~/.local/bin
+./build.sh dev
+./build.sh release
+./build.sh install
 ./build.sh clean
 ```
 
-Implementation: a tree-walk interpreter in C# / .NET 8. Graphics via raylib (Raylib-cs) and Dear ImGui (ImGui.NET + Silk.NET).
+Implementation:
+
+* Tree-walk interpreter
+* Written in C# / .NET 8
+* Graphics via Raylib-cs
+* UI via Dear ImGui / ImGui.NET / Silk.NET
+* CLI command: `mko`
+* File extension: `.mko`
+
+---
 
 ## License
 
 MIT
+
+```
+```
