@@ -635,7 +635,7 @@ class Interpreter
         "read", "write", "append", "exists", "delete", "lines",
         "time", "random", "random_int", "sleep", "env",
         // MakoUI — lifecycle
-        "MakoUI.init", "MakoUI.running", "MakoUI.begin", "MakoUI.end",
+        "MakoUI.init", "MakoUI.attach", "MakoUI.running", "MakoUI.begin", "MakoUI.end",
         // MakoUI — windows
         "MakoUI.begin_window", "MakoUI.end_window", "MakoUI.begin_window_menu",
         // MakoUI — widgets
@@ -662,7 +662,8 @@ class Interpreter
         "MakoUI.tooltip", "MakoUI.set_tooltip",
         // MakoUI — query
         "MakoUI.is_hovered", "MakoUI.is_clicked", "MakoUI.is_key_pressed",
-        "MakoUI.get_time", "MakoUI.framerate",
+        "MakoUI.get_time", "MakoUI.framerate", "MakoUI.fps_counter",
+        "MakoUI.begin_tab_bar", "MakoUI.end_tab_bar", "MakoUI.begin_tab_item", "MakoUI.end_tab_item",
         // MakoUI — style & themes
         "MakoUI.push_color", "MakoUI.pop_color", "MakoUI.push_var", "MakoUI.pop_var",
         "MakoUI.theme_dark", "MakoUI.theme_light", "MakoUI.theme_mako",
@@ -1096,6 +1097,12 @@ class Interpreter
                 _ui!.Init(Stringify(args[0]), (int)AsNum(name, args[1]), (int)AsNum(name, args[2]));
                 result = null; return true;
 
+            case "MakoUI.attach":
+                RequireArity(name, args, 0);
+                EnsureUI(name);
+                _ui!.Attach();
+                result = null; return true;
+
             case "MakoUI.running":
                 RequireArity(name, args, 0);
                 EnsureUI(name);
@@ -1366,6 +1373,22 @@ class Interpreter
                 EnsureUI(name); result = _ui!.GetTime(); return true;
             case "MakoUI.framerate":
                 EnsureUI(name); result = _ui!.GetFramerate(); return true;
+            case "MakoUI.fps_counter":
+                RequireArity(name, args, 0);
+                EnsureUI(name); _ui!.FpsCounter(); result = null; return true;
+
+            case "MakoUI.begin_tab_bar":
+                RequireArity(name, args, 1);
+                EnsureUI(name); result = _ui!.BeginTabBar(Stringify(args[0])); return true;
+            case "MakoUI.end_tab_bar":
+                RequireArity(name, args, 0);
+                EnsureUI(name); _ui!.EndTabBar(); result = null; return true;
+            case "MakoUI.begin_tab_item":
+                RequireArity(name, args, 1);
+                EnsureUI(name); result = _ui!.BeginTabItem(Stringify(args[0])); return true;
+            case "MakoUI.end_tab_item":
+                RequireArity(name, args, 0);
+                EnsureUI(name); _ui!.EndTabItem(); result = null; return true;
 
             // ── MakoRay / Mako2D / Mako3D ────────────────────────────────────
             default:

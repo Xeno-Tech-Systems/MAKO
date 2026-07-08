@@ -22,3 +22,6 @@ Thumbs.db
 # MAKO-specific
 *.mko.log
 docs/ErrorLoggingCheckThingy.txt
+
+# Dear ImGui runtime layout (window positions/sizes) — regenerated per machine
+imgui.ini

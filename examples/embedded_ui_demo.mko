@@ -1,0 +1,113 @@
+using Mako3D;
+using Inputs;
+using MakoUI;
+
+# MakoUI embedded in the 3D window — a real toolbar over the scene, not a
+# second window. Every piece of text, every readout, every control lives in
+# MakoUI panels; Mako3D is used only to render the 3D scene itself.
+#
+#   WASD/arrows fly, Q/E up/down, middle mouse orbit, scroll zoom
+#   Tab between "Scene" / "Objects" / "Settings" in the toolbar
+
+const COLORS = [
+    [230, 70, 70, 255],    # red
+    [70, 160, 230, 255],   # blue
+    [230, 190, 60, 255],   # gold
+    [110, 210, 110, 255],  # green
+    [190, 110, 230, 255],  # violet
+];
+
+main() {
+    Mako3D.init(1000, 680, "MakoUI Embedded Toolbar");
+    Mako3D.fps(0);   # uncapped, so the fps_counter graph has something to show
+
+    MakoUI.attach();
+    MakoUI.theme_mako();
+
+    cam = Mako3D.camera(10, 8, 10,  0, 0, 0);
+
+    # Scene state — all editable live from the "Objects"/"Settings" tabs
+    spin = true;
+    spin_speed = 1.0;
+    cube_color_i = 0;
+    cube_size = 2.0;
+    bg = [18, 18, 26];
+    show_grid = true;
+    cam_speed = 8.0;
+
+    t = 0;
+
+    while Mako3D.running() {
+        dt = Mako3D.delta();
+        if spin { t = t + dt * spin_speed; }
+        Mako3D.update_camera(cam, cam_speed);
+
+        # ── 3D scene — no text, no HUD, just geometry ────────────────────────
+        Mako3D.begin();
+        Mako3D.clear(Mako3D.color(bg[0], bg[1], bg[2]));
+        Mako3D.begin_3d(cam);
+
+        if show_grid { Mako3D.grid(20, 1); }
+
+        col = COLORS[cube_color_i];
+        Mako3D.cube(sin(t) * 4, 1.5, cos(t) * 4,
+                     cube_size, cube_size, cube_size,
+                     Mako3D.color(col[0], col[1], col[2]));
+        Mako3D.sphere(0, 1, 0, 1.2, Mako3D.SKYBLUE);
+
+        Mako3D.end_3d();
+
+        # ── MakoUI toolbar — every readout and control lives here ────────────
+        MakoUI.begin();
+
+        MakoUI.set_window_size(320, 360);
+        MakoUI.begin_window("Toolbar");
+
+        if MakoUI.begin_tab_bar("main_tabs") {
+
+            if MakoUI.begin_tab_item("Scene") {
+                MakoUI.fps_counter();
+                MakoUI.separator();
+                MakoUI.text("Camera: WASD fly, MMB orbit, wheel zoom");
+                MakoUI.text("Cube orbit angle: {round(t * 57.3) % 360} deg");
+                MakoUI.end_tab_item();
+            }
+
+            if MakoUI.begin_tab_item("Objects") {
+                spin = MakoUI.checkbox("Spin", spin);
+                spin_speed = MakoUI.slider("Spin speed", spin_speed, 0, 4);
+                cube_size = MakoUI.slider("Cube size", cube_size, 0.5, 4);
+                MakoUI.text("Cube color");
+                i = 0;
+                while i < len(COLORS) {
+                    MakoUI.same_line();
+                    label = "  ##color{i}";
+                    c = COLORS[i];
+                    MakoUI.push_color(21, c[0] / 255.0, c[1] / 255.0, c[2] / 255.0); # ImGuiCol.Button
+                    if MakoUI.small_button(label) { cube_color_i = i; }
+                    MakoUI.pop_color(1);
+                    i = i + 1;
+                }
+                MakoUI.end_tab_item();
+            }
+
+            if MakoUI.begin_tab_item("Settings") {
+                show_grid = MakoUI.checkbox("Show grid", show_grid);
+                cam_speed = MakoUI.slider("Camera speed", cam_speed, 1, 20);
+                bg[0] = MakoUI.slider("Background R", bg[0], 0, 255);
+                bg[1] = MakoUI.slider("Background G", bg[1], 0, 255);
+                bg[2] = MakoUI.slider("Background B", bg[2], 0, 255);
+                MakoUI.end_tab_item();
+            }
+
+            MakoUI.end_tab_bar();
+        }
+
+        MakoUI.end_window();
+        MakoUI.end();
+
+        Mako3D.end();
+    }
+
+    Mako3D.close();
+}

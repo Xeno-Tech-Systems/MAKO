@@ -10,39 +10,70 @@ using System.Linq;
 
 namespace Mako;
 
-/// MakoUI — MAKO's immediate-mode GUI layer built on Dear ImGui + Silk.NET.
+/// MakoUI — MAKO's immediate-mode GUI layer built on Dear ImGui.
 ///
-/// MAKO usage pattern:
+/// Two ways to use it:
+///
+/// **Standalone window** (its own Silk.NET/OpenGL window — for tools/editors):
 ///
 ///   using MakoUI;
 ///
 ///   main() {
 ///       MakoUI.init("My App", 1280, 720);
-///
 ///       count = 0;
-///
 ///       while MakoUI.running() {
 ///           MakoUI.begin();
-///
 ///           MakoUI.begin_window("Controls");
 ///           MakoUI.text("Count: {count}");
 ///           if MakoUI.button("Increment") { count += 1; }
 ///           MakoUI.end_window();
-///
 ///           MakoUI.end();
+///       }
+///   }
+///
+/// **Embedded in a Mako3D/Mako2D window** (a toolbar/panel over the scene —
+/// no second window, renders via raylib's own GL context):
+///
+///   using Mako3D;
+///   using MakoUI;
+///
+///   main() {
+///       Mako3D.init(1280, 720, "My Game");
+///       MakoUI.attach();                 # attach to the already-open window
+///       while Mako3D.running() {
+///           Mako3D.begin();
+///           Mako3D.clear(Mako3D.BLACK);
+///           Mako3D.begin_3d(cam); ... Mako3D.end_3d();
+///
+///           MakoUI.begin();               # ImGui frame — no clear, no swap
+///           MakoUI.begin_window("Toolbar");
+///           MakoUI.fps_counter();
+///           MakoUI.end_window();
+///           MakoUI.end();                 # renders ImGui — no swap
+///
+///           Mako3D.end();                 # swaps buffers once, for the whole frame
 ///       }
 ///   }
 ///
 sealed class MakoUI : IDisposable
 {
-    private IWindow?         _win;
-    private GL?              _gl;
-    private IInputContext?   _input;
-    private ImGuiController? _ctrl;
-    private DateTime         _lastFrame = DateTime.UtcNow;
-    private bool             _disposed;
+    private IWindow?               _win;
+    private GL?                    _gl;
+    private IInputContext?         _input;
+    private ImGuiController?       _ctrl;
+    private ImGuiRaylibController? _rlCtrl;
+    private bool                   _embedded;
+    private DateTime                _lastFrame = DateTime.UtcNow;
+    private bool                    _disposed;
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    // Rolling FPS history for FpsCounter() — independent of ImGui's own
+    // internal average, since a dedicated widget should track and show its
+    // own real samples rather than just printing a borrowed number.
+    private readonly float[] _fpsHistory = new float[90];
+    private int _fpsIndex;
+    private int _fpsSamples;
+
+    // ── Lifecycle — standalone window ────────────────────────────────────────
 
     public void Init(string title, int width, int height)
     {
@@ -70,19 +101,41 @@ sealed class MakoUI : IDisposable
         _ctrl  = new ImGuiController(_gl, _win, _input);
     }
 
+    // ── Lifecycle — embedded in an already-open raylib window ────────────────
+
+    /// Attach MakoUI to a raylib window already opened by Mako3D/Mako2D/MakoRay,
+    /// instead of opening a second window. Call once, after that window's init.
+    public void Attach()
+    {
+        if (!Raylib_cs.Raylib.IsWindowReady())
+            throw new MakoError("MakoUI.attach() requires a window already open — call Mako3D.init()/Mako2D.init() first");
+        _embedded = true;
+        _rlCtrl = new ImGuiRaylibController();
+    }
+
     /// Process pending OS events and return false when the user closes the window.
     public bool Running()
     {
+        if (_embedded) return !Raylib_cs.Raylib.WindowShouldClose();
         _win!.DoEvents();
         return !_win.IsClosing;
     }
 
-    /// Clear the framebuffer and start a new ImGui frame.
+    /// Start a new ImGui frame. In embedded mode this does NOT clear the
+    /// framebuffer or begin a raylib frame — Mako3D/Mako2D own that.
     public void Begin()
     {
+        if (_embedded)
+        {
+            _rlCtrl!.NewFrame();
+            RecordFpsSample(Raylib_cs.Raylib.GetFrameTime());
+            return;
+        }
+
         var now = DateTime.UtcNow;
         var dt  = (float)(now - _lastFrame).TotalSeconds;
         _lastFrame = now;
+        RecordFpsSample(dt);
 
         _gl!.ClearColor(0.12f, 0.12f, 0.12f, 1f);
         _gl.Clear(ClearBufferMask.ColorBufferBit);
@@ -90,9 +143,16 @@ sealed class MakoUI : IDisposable
         _ctrl!.NewFrame(dt);
     }
 
-    /// Render the ImGui frame and swap buffers.
+    /// Render the ImGui frame. In embedded mode this does NOT swap buffers —
+    /// Mako3D.end()/Mako2D.end() do that once for the whole combined frame.
     public void End()
     {
+        if (_embedded)
+        {
+            _rlCtrl!.RenderDrawData();
+            return;
+        }
+
         _ctrl!.Render();
         _win!.SwapBuffers();
     }
@@ -284,6 +344,49 @@ sealed class MakoUI : IDisposable
     public double GetTime()                  => ImGui.GetTime();
     public double GetFramerate()             => ImGui.GetIO().Framerate;
 
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+
+    public bool BeginTabBar(string id)       => ImGui.BeginTabBar(id);
+    public void EndTabBar()                  => ImGui.EndTabBar();
+    public bool BeginTabItem(string label)    => ImGui.BeginTabItem(label);
+    public void EndTabItem()                  => ImGui.EndTabItem();
+
+    // ── FPS counter ───────────────────────────────────────────────────────────
+
+    private void RecordFpsSample(float dt)
+    {
+        _fpsHistory[_fpsIndex] = dt > 0.00001f ? 1f / dt : 0f;
+        _fpsIndex = (_fpsIndex + 1) % _fpsHistory.Length;
+        if (_fpsSamples < _fpsHistory.Length) _fpsSamples++;
+    }
+
+    /// A real, self-tracked FPS widget: current value (color-coded) plus a
+    /// live rolling graph — not a static number, not borrowed from vsync.
+    public void FpsCounter()
+    {
+        if (_fpsSamples == 0) { ImGui.Text("FPS: --"); return; }
+
+        int last = (_fpsIndex - 1 + _fpsHistory.Length) % _fpsHistory.Length;
+        float current = _fpsHistory[last];
+
+        var color = current >= 55 ? new Vector4(0.4f, 0.9f, 0.4f, 1f)
+                  : current >= 30 ? new Vector4(0.95f, 0.8f, 0.3f, 1f)
+                  :                 new Vector4(0.95f, 0.35f, 0.35f, 1f);
+
+        ImGui.TextColored(color, $"{current:0} FPS");
+        ImGui.SameLine();
+        ImGui.TextDisabled($"({1000f / Math.Max(current, 0.01f):0.0} ms)");
+
+        // Build a display buffer starting from the oldest sample so the
+        // graph scrolls left-to-right in real time.
+        Span<float> ordered = stackalloc float[_fpsSamples];
+        for (int i = 0; i < _fpsSamples; i++)
+            ordered[i] = _fpsHistory[(_fpsIndex - _fpsSamples + i + _fpsHistory.Length) % _fpsHistory.Length];
+
+        ImGui.PlotLines("##fps_graph", ref ordered[0], _fpsSamples, 0, "",
+            0f, 120f, new Vector2(200, 40));
+    }
+
     // ── Style ─────────────────────────────────────────────────────────────────
 
     public void PushStyleColor(int idx, double r, double g, double b, double a = 1.0) =>
@@ -369,6 +472,9 @@ sealed class MakoUI : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        // Embedded mode: the window belongs to Mako3D/Mako2D, not us — only
+        // dispose our own ImGui renderer, never close the shared window.
+        _rlCtrl?.Dispose();
         _ctrl?.Dispose();
         _input?.Dispose();
         _win?.Dispose();

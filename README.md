@@ -120,6 +120,7 @@ All examples install globally. Run these from any directory:
 | `mko music_maker.mko`  | Playable synth piano — 5 waveforms and melody baking                     |
 | `mko settings.mko`     | FPS overlay, graph, audio sliders, and FPS cap selector                  |
 | `mko ui_demo.mko`      | Dear ImGui desktop UI — menus, tables, modals, cherry-blossom theme      |
+| `mko embedded_ui_demo.mko` | MakoUI embedded live in a 3D scene — tabbed toolbar, real FPS counter, no second window |
 | `mko sound_3d.mko`     | 3D positional audio — beacons that pan and fade as you fly               |
 | `mko input_test.mko`   | Visual input tester — every key/button lights up live                    |
 
@@ -211,7 +212,7 @@ using mylib from "github:User/Repo";
 | `using Inputs;` | Unified input: keyboard, mouse, cursor lock, gamepad                                 |
 | `using Audio;`  | Sound files, synthesizer, music streaming, 2D/3D positional sound, 8-voice polyphony |
 | `using Net;`    | HTTP requests (GET/POST/PUT/DELETE) + JSON encode/decode                            |
-| `using MakoUI;` | Desktop UIs via Dear ImGui: windows, menus, tables, modals, themes                   |
+| `using MakoUI;` | Desktop UIs via Dear ImGui: windows, menus, tables, modals, tabs, themes — standalone window or embedded live in a Mako3D/Mako2D scene |
 
 Game-dev builtins are available without an import:
 

@@ -1,7 +1,15 @@
 # MakoUI — desktop UIs (Dear ImGui)
 
-Immediate-mode GUI for tools and apps. Widgets are drawn every frame; the
-functions return the new value / whether they were activated.
+Immediate-mode GUI for tools, apps, and in-game toolbars. Widgets are drawn
+every frame; the functions return the new value / whether they were
+activated.
+
+MakoUI runs in one of two modes:
+
+## Standalone window
+
+Its own window (Silk.NET/OpenGL) — for tools and editors that don't need a
+3D/2D scene.
 
 ```mako
 using MakoUI;
@@ -24,11 +32,87 @@ main() {
 }
 ```
 
+## Embedded in a Mako3D/Mako2D window
+
+No second window — MakoUI renders directly into the same raylib window as
+your 3D/2D scene, using raylib's own draw calls (`Rlgl`) instead of a
+separate GL context. This is what makes a real in-game toolbar possible:
+panels, tabs, and an FPS counter that sit right over your scene.
+
+```mako
+using Mako3D;
+using MakoUI;
+
+main() {
+    Mako3D.init(1280, 720, "My Game");
+    MakoUI.attach();                     # attach to the window Mako3D opened
+    MakoUI.theme_mako();
+
+    cam = Mako3D.camera(8, 6, 8,  0, 0, 0);
+
+    while Mako3D.running() {
+        Mako3D.update_camera(cam, 8);
+
+        Mako3D.begin();                  # Mako3D owns clearing + swapping
+        Mako3D.clear(Mako3D.BLACK);
+        Mako3D.begin_3d(cam);
+        Mako3D.cube(0, 1, 0,  2, 2, 2, Mako3D.RED);
+        Mako3D.end_3d();
+
+        MakoUI.begin();                  # starts the ImGui frame only
+        MakoUI.begin_window("Toolbar");
+        MakoUI.fps_counter();
+        MakoUI.end_window();
+        MakoUI.end();                    # renders ImGui only
+
+        Mako3D.end();                    # Mako3D swaps buffers once
+    }
+}
+```
+
+Order matters: draw your 3D/2D scene first, then `MakoUI.begin()` /
+widgets / `MakoUI.end()`, then close with the renderer's own `end()` — that
+way the UI draws on top of the scene in the same frame. `MakoUI.attach()`
+requires a window to already be open (`Mako3D.init()`/`Mako2D.init()` first)
+and errors clearly if none exists.
+
 ## Lifecycle & windows
 
-`init(title, w, h)` · `running()` · `begin()` / `end()` ·
-`begin_window(title)` / `end_window()` · `set_window_size(w, h)` ·
-`set_window_pos(x, y)` · `begin_window_menu(title)` (window with a menu bar)
+`init(title, w, h)` (standalone) · `attach()` (embedded) · `running()` ·
+`begin()` / `end()` · `begin_window(title)` / `end_window()` ·
+`set_window_size(w, h)` · `set_window_pos(x, y)` ·
+`begin_window_menu(title)` (window with a menu bar)
+
+## FPS counter
+
+```mako
+MakoUI.fps_counter();
+```
+
+A real, self-tracked widget — not a borrowed or static number: a 90-frame
+rolling buffer of actual frame times, a color-coded readout (green ≥55,
+gold ≥30, red below), the frame time in ms, and a live line graph. Works
+in both standalone and embedded mode.
+
+## Tabs
+
+```mako
+if MakoUI.begin_tab_bar("main_tabs") {
+    if MakoUI.begin_tab_item("Scene") {
+        MakoUI.text("Scene controls here");
+        MakoUI.end_tab_item();
+    }
+    if MakoUI.begin_tab_item("Settings") {
+        MakoUI.text("Settings here");
+        MakoUI.end_tab_item();
+    }
+    MakoUI.end_tab_bar();
+}
+```
+
+Only the content inside the active tab's `begin_tab_item`/`end_tab_item`
+block renders — this is the toolbar-with-tabs pattern for grouping panels
+over a 3D/2D scene. See `examples/embedded_ui_demo.mko`.
 
 ## Widgets
 
@@ -112,4 +196,6 @@ if MakoUI.begin_table("data", 3) {
 - Fine styling: `push_color(idx, r, g, b, a)` / `pop_color(n)` ·
   `push_var(idx, value)` / `pop_var(n)`
 
-See `examples/ui_demo.mko` for all of it in one app.
+See `examples/ui_demo.mko` for the standalone-window widget tour, and
+`examples/embedded_ui_demo.mko` for the embedded toolbar-over-a-3D-scene
+pattern (tabs, FPS counter, live scene controls).
