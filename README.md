@@ -1,71 +1,39 @@
 # MAKO
 
-**A simple, sharp programming language — easy to learn, easy to build with.**
+**A simple, sharp programming language — with a game engine built in.**
 
-MAKO blends the readability of Python, the simplicity of Lua/Luau, and the structure of C-style languages. No heavy boilerplate, no confusing syntax. Just write code and run it.
+MAKO blends the readability of Python, the simplicity of Lua, and the structure of C-style languages. Write a script, run it with `mko`, and you have windows, 3D graphics, synthesized sound, and monster AI — no project files, no build step, no asset pipeline required.
 
-> **Status:** v0.02 — loops, functions, lists, namespaces, string interpolation, and more.
-
----
-
-## Quick look
+> **Status:** v0.03 — dicts, lambdas, try/catch, formatter, REPL, packages, and five native packages: **MakoUI**, **Mako2D**, **Mako3D**, **Inputs**, **Audio**.
 
 ```mako
-script "Hello";
+using Mako2D;
+using Inputs;
+using Audio;
 
 main() {
-    name = input "What's your name? ";
-    print "Hello, {name}! Welcome to MAKO.";
-}
-```
+    Mako2D.init(800, 600, "My Game");
+    Mako2D.fps(60);
+    beep = Audio.tone("square", 440, 0.1);   # synthesized — no sound files
+    x = 400;
 
-```mako
-script "FizzBuzz";
+    while Mako2D.running() {
+        if Inputs.key_down("RIGHT") { x = x + 300 * Mako2D.delta(); }
+        if Inputs.key_pressed("SPACE") { Audio.play(beep); }
 
-main() {
-    for i in range(1, 101) {
-        if i % 15 == 0      { print "FizzBuzz"; }
-        else if i % 3 == 0  { print "Fizz"; }
-        else if i % 5 == 0  { print "Buzz"; }
-        else                 { print i; }
+        Mako2D.begin();
+        Mako2D.clear(Mako2D.BLACK);
+        Mako2D.circle(x, 300, 24, Mako2D.SKYBLUE);
+        Mako2D.end();
     }
 }
 ```
 
-```mako
-script "Functions";
-
-fn greet(name) {
-    return "Hello, {name}!";
-}
-
-fn factorial(n) {
-    if n <= 1 { return 1; }
-    return n * factorial(n - 1);
-}
-
-main() {
-    print greet("World");
-    print "10! = {factorial(10)}";
-}
-```
-
 ---
 
-## Design goals
+## Install
 
-- **Easy to learn** — beginner-friendly, minimal concepts to remember
-- **Easy to type** — no symbols that are hard to reach on a normal keyboard
-- **Structured** — C-style braces `{}`, not indentation-sensitive
-- **Practical** — useful for scripts, tools, and small programs
-- **Modular** — namespaces and `use` for splitting code across files
-- **Expandable** — built to grow from scripts into larger programs
-
----
-
-## Build and install
-
-Requires [.NET 8 SDK](https://dotnet.microsoft.com/download).
+Needs the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) and git.
 
 ```bash
 # Arch / Abora
@@ -78,161 +46,141 @@ sudo apt install dotnet-sdk-8.0
 ```bash
 git clone https://github.com/AnimatedGTVR/MAKO
 cd MAKO
-
-./build.sh release   # build to bin/mko
-./build.sh install   # build and copy to ~/.local/bin/mko
+./build.sh install
 ```
 
----
-
-## Run a program
+That installs `mko` to `~/.local/bin` (plus native libs and all examples). Then, from anywhere:
 
 ```bash
-mko run examples/hello.mko
-mko run examples/loops.mko
-mko run examples/functions.mko
+mko hello.mko          # examples resolve from anywhere
+mko pong.mko           # play Pong
+mko repl               # interactive REPL
 ```
 
-During development (without installing):
-
-```bash
-cd src/Mako
-dotnet run -- run ../../examples/hello.mko
-```
-
----
-
-## Language at a glance
-
-| Feature              | Syntax                                          |
-|----------------------|-------------------------------------------------|
-| Script name          | `script "My App";`                              |
-| Entry point          | `main() { }`                                    |
-| Print (newline)      | `print "Hello";`                                |
-| Print (no newline)   | `printnl "Hello ";`                             |
-| Variable             | `name = "Alice";`                               |
-| Constant             | `const PI = 3.14159;`                           |
-| Input                | `name = input "Enter name: ";`                  |
-| String interpolation | `print "Hello, {name}! Pi = {PI}";`             |
-| Arithmetic           | `result = (a + b) * 2;`                         |
-| Modulo               | `x = 10 % 3;`                                   |
-| Compound assign      | `x += 1;`  `x -= 2;`  `x *= 3;`  `x /= 4;`    |
-| Boolean              | `active = true;`                                |
-| None                 | `x = none;`                                     |
-| If / else if         | `if x > 10 { } else if x == 10 { } else { }`   |
-| Logical              | `x > 0 and x < 10`  /  `a or b`  /  `not done` |
-| While loop           | `while i < 10 { i += 1; }`                     |
-| For loop             | `for item in list { }`                          |
-| Range                | `for i in range(10) { }`                        |
-| Break / continue     | `break;`  /  `continue;`                        |
-| Function             | `fn add(a, b) { return a + b; }`                |
-| Function call        | `result = add(3, 4);`                           |
-| List                 | `nums = [1, 2, 3];`                             |
-| List index           | `nums[0]`  /  `nums[-1]`                        |
-| Shell command        | `run "echo hello";`                             |
-| Comment              | `// line`  /  `/* block */`                     |
-| Namespace            | `namespace Math;`                               |
-| Import               | `use "mathlib.mko";`                            |
-| Namespaced call      | `Math.add(3, 4)`                                |
-
----
-
-## Built-in functions
-
-| Category | Functions |
-|----------|-----------|
-| Type     | `type(x)` `to_num(x)` `to_str(x)` |
-| Math     | `abs` `floor` `ceil` `sqrt` `round` `pow` `max` `min` |
-| Range    | `range(n)` `range(start, stop)` `range(start, stop, step)` |
-| String   | `len` `upper` `lower` `trim` `contains` `starts_with` `ends_with` `replace` `split` `join` |
-| List     | `len` `push` `pop` `first` `last` `reverse` `has` |
-| Program  | `assert(cond, msg)` `exit(code)` |
-
----
-
-## Namespaces
-
-Split your code into modules with `namespace` and `use`:
+Scripts can also be made executable directly:
 
 ```mako
-// mathlib.mko
-namespace Math;
+#!/usr/bin/env mko
+main() { print "hello!"; }
+```
 
-fn add(a, b) { return a + b; }
-fn clamp(v, lo, hi) {
-    if v < lo { return lo; }
-    if v > hi { return hi; }
-    return v;
+## Try the games
+
+All examples install globally — run these from any directory:
+
+| Command | What it is |
+|---|---|
+| `mko pong.mko` | Pong vs an AI paddle — synth sound, positional audio |
+| `mko snake.mko` | Snake — speeds up as you grow, pitch-shifting eat sound |
+| `mko gem_hunter.mko` | 3D arena collector — camera follow, patrol enemies, navigate by ear |
+| `mko monster_maze.mko` | **Stealth game** — monster AI with a vision cone, hearing, A* pathfinding |
+| `mko music_maker.mko` | Playable synth piano — 5 waveforms, bake melodies from note lists |
+| `mko settings.mko` | FPS overlay + graph, audio sliders, FPS cap selector |
+| `mko ui_demo.mko` | Dear ImGui desktop UI — menus, tables, modals, cherry-blossom theme |
+| `mko sound_3d.mko` | 3D positional audio — beacons that pan and fade as you fly |
+| `mko input_test.mko` | Visual input tester — every key/button lights up live |
+
+## The language in 60 seconds
+
+```mako
+script "Tour";                       # optional script header
+
+const MAX = 100;                     # top-level constants
+
+fn greet(name) {                     # functions
+    return "Hello, {name}!";         # string interpolation
 }
-```
-
-```mako
-// main.mko
-script "My App";
-use "mathlib.mko";
 
 main() {
-    print Math.add(10, 5);
-    print Math.clamp(99, 0, 10);
+    # Types: numbers, strings, booleans, none, lists, dicts
+    nums = [3, 1, 2];
+    user = {"name": "Robin", "score": 42};
+
+    # Lambdas + higher-order builtins
+    doubled = map(nums, fn(x) => x * 2);
+    big = filter(nums, fn(x) => x > 1);
+
+    # Control flow
+    for n in nums { print n; }
+    while user["score"] < MAX { user["score"] = user["score"] + 10; }
+
+    # Error handling
+    try {
+        assert(false, "boom");
+    } catch err {
+        print "oops: {err}";
+    }
+
+    # Files, shell, time
+    write("save.txt", "data");
+    run "echo from the shell";
+    print time();
 }
 ```
 
----
-
-## Examples
-
-| File                        | What it shows                            |
-|-----------------------------|------------------------------------------|
-| `examples/hello.mko`        | Minimal hello world                      |
-| `examples/variables.mko`    | All variable types                       |
-| `examples/input.mko`        | Reading user input                       |
-| `examples/math.mko`         | Arithmetic and comparisons               |
-| `examples/booleans.mko`     | Boolean values                           |
-| `examples/greet.mko`        | Input + if/else if/else                  |
-| `examples/temperature.mko`  | Temperature converter                    |
-| `examples/quiz.mko`         | Simple quiz game                         |
-| `examples/shell.mko`        | Running shell commands                   |
-| `examples/loops.mko`        | while + for + FizzBuzz                   |
-| `examples/functions.mko`    | fn, return, recursion, built-ins         |
-| `examples/lists.mko`        | Lists, indexing, push/pop, for-each      |
-| `examples/strings.mko`      | String built-ins                         |
-| `examples/control.mko`      | break, continue, not, printnl            |
-| `examples/mathlib.mko`      | Namespace module (Math library)          |
-| `examples/namespaces.mko`   | use + Namespace.func() calls             |
-| `examples/v02features.mko`  | const, range, assert, interpolation      |
-
----
-
-## Docs
-
-- [Getting Started](docs/getting-started.md) — install, build, first program
-- [Language Reference](docs/language-reference.md) — complete spec
-- [Roadmap](docs/roadmap.md) — what is planned next
-
----
-
-## Project structure
+Errors point at the problem and suggest fixes:
 
 ```
-MAKO/
-  src/
-    Mako/
-      Mako.csproj       project file
-      Program.cs        CLI entry point
-      Token.cs          token types
-      Lexer.cs          source text → token list
-      Ast.cs            AST node types
-      Parser.cs         token list → AST (recursive descent)
-      Interpreter.cs    AST → execution (tree-walk)
-      MakoError.cs      error type with line numbers
-  examples/             sample .mko programs
-  docs/                 language docs and roadmap
-  build.sh              build and install script
-  CHANGELOG.md          version history
+  print greeet("World");
+        ^^^^^^
+mko: error (line 4): function 'greeet' wasn't found
+  hint: did you mean 'greet'?
 ```
 
----
+## CLI
+
+| Command | Does |
+|---|---|
+| `mko <file.mko>` / `mko run <file>` | Run a script |
+| `mko repl` | Interactive REPL |
+| `mko fmt <file>` [`--check`] | Format source (preserves comments) |
+| `mko get <pkg> [github:User/Repo]` | Install a package |
+| `mko list` / `mko cache clear` | Manage installed packages |
+
+Packages come from GitHub with one line:
+
+```mako
+using mylib from "github:User/Repo";
+```
+
+## Native packages
+
+| Package | What it gives you |
+|---|---|
+| `using Mako2D;` | 2D games: sprites, spritesheets, Camera2D, shapes, text |
+| `using Mako3D;` | 3D games: Camera3D (fly/orbit controls built in), cubes/spheres/models, grid |
+| `using Inputs;` | Unified input: keyboard, mouse, cursor lock, gamepad |
+| `using Audio;` | Sound files + **synthesizer** (5 waveforms, note names, melody baking), music streaming, **2D/3D positional sound**, 8-voice polyphony |
+| `using MakoUI;` | Desktop UIs via Dear ImGui: windows, menus, tables, modals, themes |
+
+Game-dev builtins are always available — no import needed:
+
+```mako
+clamp(v, 0, 10)   lerp(a, b, t)   dist(x1,y1, x2,y2)   sin/cos/atan2/pi
+rects_overlap(...)   circles_overlap(...)   point_in_rect(...)
+find_path(grid, sx,sy, ex,ey)     # A* pathfinding
+line_of_sight(grid, x1,y1, x2,y2) # wall-aware visibility
+```
+
+## Documentation
+
+- [Language reference](docs/language.md) — syntax, types, control flow, functions, modules
+- [Standard library](docs/stdlib.md) — every builtin function
+- [CLI](docs/cli.md) — every `mko` command
+- [Mako2D](docs/mako2d.md) · [Mako3D](docs/mako3d.md) · [Inputs](docs/inputs.md) · [Audio](docs/audio.md) · [MakoUI](docs/makoui.md)
+- [Game development guide](docs/games.md) — delta time, collision, AI patterns, positional audio
+
+## Building from source
+
+```bash
+./build.sh dev        # debug build
+./build.sh release    # optimized single-file binary → bin/
+./build.sh install    # release build + install to ~/.local/bin
+./build.sh clean
+```
+
+Implementation: a tree-walk interpreter in C# / .NET 8. Graphics via raylib (Raylib-cs) and Dear ImGui (ImGui.NET + Silk.NET).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT
