@@ -1,0 +1,167 @@
+using Mako2D;
+using Inputs;
+using Audio;
+
+# SNAKE
+#   Arrow keys / WASD — steer
+#   Eat food to grow. Don't hit yourself or the walls.
+#   SPACE — restart after game over
+
+const CELL = 24;
+const COLS = 28;
+const ROWS = 20;
+# window: 672 x 480 for the grid + 40px header
+
+fn spawn_food(snake_x, snake_y) {
+    # Keep picking until the food isn't on the snake
+    while true {
+        fx = random_int(0, COLS - 1);
+        fy = random_int(0, ROWS - 1);
+        on_snake = false;
+        i = 0;
+        while i < len(snake_x) {
+            if snake_x[i] == fx and snake_y[i] == fy { on_snake = true; }
+            i = i + 1;
+        }
+        if not on_snake { return [fx, fy]; }
+    }
+}
+
+main() {
+    Mako2D.init(COLS * CELL, ROWS * CELL + 40, "MAKO Snake");
+    Mako2D.fps(60);
+
+    snd_eat  = Audio.tone("square", 880, 0.08);
+    snd_die  = Audio.melody("saw", ["G3:0.5", "E3:0.5", "C3"], 220);
+    snd_turn = Audio.tone("sine", 330, 0.03);
+    Audio.volume(snd_turn, 0.25);
+
+    # Snake as parallel coordinate lists, head at index 0
+    snake_x = [14, 13, 12];
+    snake_y = [10, 10, 10];
+    dir_x = 1;
+    dir_y = 0;
+    next_dx = 1;
+    next_dy = 0;
+
+    food = spawn_food(snake_x, snake_y);
+    score = 0;
+    best = 0;
+    dead = false;
+    move_t = 0;
+    speed = 0.13;   # seconds per step, shrinks as you grow
+
+    while Mako2D.running() {
+        dt = Mako2D.delta();
+
+        # ── Input (queue next direction; no 180° turns) ─────────────────────
+        if not dead {
+            if (Inputs.key_pressed("UP") or Inputs.key_pressed("W")) and dir_y != 1 {
+                next_dx = 0; next_dy = -1; Audio.play(snd_turn);
+            }
+            if (Inputs.key_pressed("DOWN") or Inputs.key_pressed("S")) and dir_y != -1 {
+                next_dx = 0; next_dy = 1; Audio.play(snd_turn);
+            }
+            if (Inputs.key_pressed("LEFT") or Inputs.key_pressed("A")) and dir_x != 1 {
+                next_dx = -1; next_dy = 0; Audio.play(snd_turn);
+            }
+            if (Inputs.key_pressed("RIGHT") or Inputs.key_pressed("D")) and dir_x != -1 {
+                next_dx = 1; next_dy = 0; Audio.play(snd_turn);
+            }
+        }
+
+        if dead and Inputs.key_pressed("SPACE") {
+            snake_x = [14, 13, 12];
+            snake_y = [10, 10, 10];
+            dir_x = 1; dir_y = 0; next_dx = 1; next_dy = 0;
+            food = spawn_food(snake_x, snake_y);
+            score = 0;
+            dead = false;
+            speed = 0.13;
+        }
+
+        # ── Step the snake on a timer ────────────────────────────────────────
+        if not dead {
+            move_t = move_t + dt;
+            if move_t >= speed {
+                move_t = 0;
+                dir_x = next_dx;
+                dir_y = next_dy;
+
+                head_x = snake_x[0] + dir_x;
+                head_y = snake_y[0] + dir_y;
+
+                # Wall hit?
+                if head_x < 0 or head_x >= COLS or head_y < 0 or head_y >= ROWS {
+                    dead = true;
+                    Audio.play(snd_die);
+                }
+
+                # Self hit?
+                i = 0;
+                while i < len(snake_x) - 1 and not dead {
+                    if snake_x[i] == head_x and snake_y[i] == head_y {
+                        dead = true;
+                        Audio.play(snd_die);
+                    }
+                    i = i + 1;
+                }
+
+                if not dead {
+                    # Grow from the head
+                    snake_x = [head_x] + snake_x;
+                    snake_y = [head_y] + snake_y;
+
+                    if head_x == food[0] and head_y == food[1] {
+                        score = score + 1;
+                        if score > best { best = score; }
+                        speed = max(0.055, speed - 0.004);
+                        pitch = 1 + score * 0.03;
+                        Audio.pitch(snd_eat, min(pitch, 2.5));
+                        Audio.play(snd_eat);
+                        food = spawn_food(snake_x, snake_y);
+                    } else {
+                        # Not eating — drop the tail
+                        pop(snake_x);
+                        pop(snake_y);
+                    }
+                }
+            }
+        }
+
+        # ── Draw ─────────────────────────────────────────────────────────────
+        Mako2D.begin();
+        Mako2D.clear(Mako2D.color(14, 16, 20));
+
+        # Header
+        Mako2D.rect(0, 0, COLS * CELL, 40, Mako2D.color(22, 26, 34));
+        Mako2D.text("SNAKE", 14, 8, 24, Mako2D.LIME);
+        Mako2D.text("score {score}   best {best}", 140, 12, 18, Mako2D.WHITE);
+
+        oy = 40;   # grid starts below header
+
+        # Food
+        Mako2D.circle(food[0] * CELL + CELL / 2, oy + food[1] * CELL + CELL / 2,
+                      CELL / 2 - 3, Mako2D.RED);
+
+        # Snake
+        i = len(snake_x) - 1;
+        while i >= 0 {
+            c = Mako2D.LIME;
+            if i == 0 { c = Mako2D.GOLD; }   # head
+            Mako2D.rect_round(snake_x[i] * CELL + 2, oy + snake_y[i] * CELL + 2,
+                              CELL - 4, CELL - 4, 0.35, 4, c);
+            i = i - 1;
+        }
+
+        if dead {
+            Mako2D.rect(0, oy + 150, COLS * CELL, 110, Mako2D.fade(Mako2D.BLACK, 0.7));
+            Mako2D.text("GAME OVER", COLS * CELL / 2 - 120, oy + 170, 42, Mako2D.RED);
+            Mako2D.text("SPACE to restart", COLS * CELL / 2 - 85, oy + 220, 18, Mako2D.LIGHTGRAY);
+        }
+
+        Mako2D.end();
+    }
+
+    Mako2D.close();
+}
