@@ -1,0 +1,166 @@
+using Mako2D;
+using Inputs;
+using Audio;
+
+# PONG — first MAKO game!
+#   W / S  or  UP / DOWN  — move your paddle (left)
+#   SPACE                 — serve / restart
+#   First to 5 wins.
+
+const WIDTH = 800;
+const HEIGHT = 500;
+const PADDLE_H = 90;
+const PADDLE_W = 14;
+const WIN_SCORE = 5;
+
+fn reset_ball(dir) {
+    # Returns [x, y, dx, dy]
+    dy = 3;
+    if random() > 0.5 { dy = 0 - 3; }
+    return [400, 250, 5 * dir, dy];
+}
+
+main() {
+    Mako2D.init(WIDTH, HEIGHT, "MAKO Pong");
+    Mako2D.fps(60);
+
+    snd_paddle = Audio.tone("square", 440, 0.06);
+    snd_wall   = Audio.tone("square", 220, 0.06);
+    snd_score  = Audio.tone("saw", 160, 0.4);
+    snd_win    = Audio.melody("square", ["C4:0.5", "E4:0.5", "G4:0.5", "C5"], 200);
+
+    # Paddles
+    p1_y = 205;
+    p2_y = 205;
+
+    ball = reset_ball(1);
+    serving = true;
+    score1 = 0;
+    score2 = 0;
+    winner = 0;
+
+    while Mako2D.running() {
+        dt = Mako2D.delta();
+
+        # ── Input ────────────────────────────────────────────────────────────
+        if winner == 0 {
+            if Inputs.key_down("W") or Inputs.key_down("UP")   { p1_y = p1_y - 420 * dt; }
+            if Inputs.key_down("S") or Inputs.key_down("DOWN") { p1_y = p1_y + 420 * dt; }
+            p1_y = max(10, min(p1_y, HEIGHT - PADDLE_H - 10));
+        }
+
+        if serving and Inputs.key_pressed("SPACE") { serving = false; }
+
+        if winner != 0 and Inputs.key_pressed("SPACE") {
+            score1 = 0; score2 = 0; winner = 0;
+            ball = reset_ball(1);
+            serving = true;
+        }
+
+        # ── Game update ──────────────────────────────────────────────────────
+        if not serving and winner == 0 {
+            bx = ball[0]; by = ball[1]; bdx = ball[2]; bdy = ball[3];
+
+            bx = bx + bdx;
+            by = by + bdy;
+
+            # Wall bounce
+            if by < 8 or by > HEIGHT - 8 {
+                bdy = 0 - bdy;
+                by = max(8, min(by, HEIGHT - 8));
+                Audio.play(snd_wall);
+            }
+
+            # Player paddle (left, at x=30)
+            if bdx < 0 and bx < 30 + PADDLE_W + 8 and bx > 30 {
+                if by > p1_y - 8 and by < p1_y + PADDLE_H + 8 {
+                    bdx = (0 - bdx) * 1.05;
+                    # Add spin based on where it hit the paddle
+                    hit = (by - p1_y - PADDLE_H / 2) / (PADDLE_H / 2);
+                    bdy = bdy + hit * 3;
+                    Audio.play_at(snd_paddle, bx, by);
+                }
+            }
+
+            # AI paddle (right, at x=WIDTH-30-PADDLE_W)
+            if bdx > 0 and bx > WIDTH - 30 - PADDLE_W - 8 and bx < WIDTH - 30 {
+                if by > p2_y - 8 and by < p2_y + PADDLE_H + 8 {
+                    bdx = (0 - bdx) * 1.05;
+                    hit = (by - p2_y - PADDLE_H / 2) / (PADDLE_H / 2);
+                    bdy = bdy + hit * 3;
+                    Audio.play_at(snd_paddle, bx, by);
+                }
+            }
+
+            # AI follows the ball (with limited speed = beatable)
+            target = by - PADDLE_H / 2;
+            diff = target - p2_y;
+            ai_speed = 330 * dt;
+            if diff > ai_speed { diff = ai_speed; }
+            if diff < 0 - ai_speed { diff = 0 - ai_speed; }
+            p2_y = p2_y + diff;
+            p2_y = max(10, min(p2_y, HEIGHT - PADDLE_H - 10));
+
+            # Cap ball vertical speed
+            bdy = max(0 - 9, min(bdy, 9));
+
+            # Score
+            if bx < 0 {
+                score2 = score2 + 1;
+                Audio.play(snd_score);
+                ball = reset_ball(1);
+                serving = true;
+            }
+            if bx > WIDTH {
+                score1 = score1 + 1;
+                Audio.play(snd_score);
+                ball = reset_ball(0 - 1);
+                serving = true;
+            }
+            if bx >= 0 and bx <= WIDTH {
+                ball = [bx, by, bdx, bdy];
+            }
+
+            if score1 >= WIN_SCORE { winner = 1; Audio.play(snd_win); }
+            if score2 >= WIN_SCORE { winner = 2; Audio.play(snd_win); }
+        }
+
+        # ── Draw ─────────────────────────────────────────────────────────────
+        Mako2D.begin();
+        Mako2D.clear(Mako2D.color(12, 12, 20));
+
+        # Centre line
+        y = 10;
+        while y < HEIGHT {
+            Mako2D.rect(WIDTH / 2 - 2, y, 4, 14, Mako2D.fade(Mako2D.WHITE, 0.25));
+            y = y + 28;
+        }
+
+        # Paddles + ball
+        Mako2D.rect_round(30, p1_y, PADDLE_W, PADDLE_H, 0.6, 6, Mako2D.SKYBLUE);
+        Mako2D.rect_round(WIDTH - 30 - PADDLE_W, p2_y, PADDLE_W, PADDLE_H, 0.6, 6, Mako2D.PINK);
+        if not serving {
+            Mako2D.circle(ball[0], ball[1], 8, Mako2D.WHITE);
+        }
+
+        # Score
+        Mako2D.text("{score1}", WIDTH / 2 - 70, 24, 48, Mako2D.SKYBLUE);
+        Mako2D.text("{score2}", WIDTH / 2 + 42, 24, 48, Mako2D.PINK);
+
+        if serving and winner == 0 {
+            Mako2D.text("press SPACE to serve", WIDTH / 2 - 120, HEIGHT - 60, 20, Mako2D.GOLD);
+        }
+        if winner == 1 {
+            Mako2D.text("YOU WIN!", WIDTH / 2 - 110, 200, 46, Mako2D.LIME);
+            Mako2D.text("SPACE to play again", WIDTH / 2 - 105, 260, 20, Mako2D.LIGHTGRAY);
+        }
+        if winner == 2 {
+            Mako2D.text("AI WINS", WIDTH / 2 - 95, 200, 46, Mako2D.RED);
+            Mako2D.text("SPACE to play again", WIDTH / 2 - 105, 260, 20, Mako2D.LIGHTGRAY);
+        }
+
+        Mako2D.end();
+    }
+
+    Mako2D.close();
+}
