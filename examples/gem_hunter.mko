@@ -1,0 +1,225 @@
+using Mako3D;
+using Inputs;
+using Audio;
+
+# GEM HUNTER 3D
+#   WASD / arrows — run around the arena
+#   Collect all 8 gems before the guards catch you.
+#   3 lives. Listen — every gem pings so you can hear where it is.
+#   SPACE — restart after win / game over
+
+const ARENA = 11;        # arena half-size (walls at ±ARENA)
+const GEM_COUNT = 8;
+const PLAYER_SPEED = 9;
+
+fn random_pos() {
+    # random arena position away from centre spawn
+    while true {
+        x = random_int(0 - ARENA + 2, ARENA - 2);
+        z = random_int(0 - ARENA + 2, ARENA - 2);
+        if abs(x) + abs(z) > 5 { return [x, z]; }
+    }
+}
+
+main() {
+    Mako3D.init(900, 620, "Gem Hunter 3D");
+    Mako3D.fps(60);
+
+    cam = Mako3D.camera(10, 14, 10,  0, 0, 0);
+
+    # ── Sounds (all synthesized) ─────────────────────────────────────────────
+    snd_pickup = Audio.melody("sine", ["E5:0.25", "A5:0.25"], 240);
+    snd_ping   = Audio.tone("sine", 1320, 0.07);
+    snd_hit    = Audio.melody("saw", ["G3:0.3", "C3:0.5"], 200);
+    snd_win    = Audio.melody("square", ["C4:0.5", "E4:0.5", "G4:0.5", "C5:1.5"], 180);
+    snd_lose   = Audio.melody("saw", ["E3:0.5", "D3:0.5", "C3:1.5"], 140);
+    snd_step   = Audio.tone("noise", 200, 0.04);
+    Audio.volume(snd_ping, 0.5);
+    Audio.volume(snd_step, 0.12);
+
+    # ── Game state ───────────────────────────────────────────────────────────
+    px = 0; pz = 0;
+    lives = 3;
+    score = 0;
+    state = "play";        # play | win | lose
+    hurt_cool = 0;
+    step_t = 0;
+    ping_t = 0;
+    t = 0;
+
+    # Gems: list of [x, z, alive]
+    gems = [];
+    i = 0;
+    while i < GEM_COUNT {
+        p = random_pos();
+        push(gems, [p[0], p[1], true]);
+        i = i + 1;
+    }
+
+    # Guards: [angle_offset, radius, speed]
+    guards = [
+        [0,    6,  1.1],
+        [2.1,  8,  0.8],
+        [4.2,  9.5, 0.65]
+    ];
+
+    while Mako3D.running() {
+        dt = Mako3D.delta();
+        t = t + dt;
+
+        # ── Input & movement ─────────────────────────────────────────────────
+        if state == "play" {
+            mvx = 0; mvz = 0;
+            if Inputs.key_down("W") or Inputs.key_down("UP")    { mvx = mvx - 1; mvz = mvz - 1; }
+            if Inputs.key_down("S") or Inputs.key_down("DOWN")  { mvx = mvx + 1; mvz = mvz + 1; }
+            if Inputs.key_down("A") or Inputs.key_down("LEFT")  { mvx = mvx - 1; mvz = mvz + 1; }
+            if Inputs.key_down("D") or Inputs.key_down("RIGHT") { mvx = mvx + 1; mvz = mvz - 1; }
+
+            moving = mvx != 0 or mvz != 0;
+            if moving {
+                # normalize diagonal speed
+                mlen = sqrt(mvx * mvx + mvz * mvz);
+                px = px + mvx / mlen * PLAYER_SPEED * dt;
+                pz = pz + mvz / mlen * PLAYER_SPEED * dt;
+                px = clamp(px, 0 - ARENA + 1, ARENA - 1);
+                pz = clamp(pz, 0 - ARENA + 1, ARENA - 1);
+
+                # footsteps
+                step_t = step_t + dt;
+                if step_t > 0.22 {
+                    step_t = 0;
+                    Audio.play(snd_step);
+                }
+            }
+
+            # ── Gems: pickup + audio pings ──────────────────────────────────
+            ping_t = ping_t + dt;
+            do_ping = false;
+            if ping_t > 1.6 { ping_t = 0; do_ping = true; }
+
+            i = 0;
+            while i < GEM_COUNT {
+                g = gems[i];
+                if g[2] {
+                    if dist(px, pz, g[0], g[1]) < 1.3 {
+                        gems[i] = [g[0], g[1], false];
+                        score = score + 1;
+                        Audio.play(snd_pickup);
+                        if score >= GEM_COUNT {
+                            state = "win";
+                            Audio.play(snd_win);
+                        }
+                    }
+                    if do_ping {
+                        Audio.play_3d(snd_ping, g[0], 1, g[1],  px, 1, pz);
+                    }
+                }
+                i = i + 1;
+            }
+
+            # ── Guards: patrol circles, hurt on contact ─────────────────────
+            hurt_cool = max(0, hurt_cool - dt);
+            i = 0;
+            while i < len(guards) {
+                gd = guards[i];
+                gx = cos(t * gd[2] + gd[0]) * gd[1];
+                gz = sin(t * gd[2] + gd[0]) * gd[1];
+                if hurt_cool == 0 and dist(px, pz, gx, gz) < 1.4 {
+                    lives = lives - 1;
+                    hurt_cool = 1.5;
+                    Audio.play(snd_hit);
+                    if lives <= 0 {
+                        state = "lose";
+                        Audio.play(snd_lose);
+                    }
+                }
+                i = i + 1;
+            }
+        }
+
+        # Restart
+        if state != "play" and Inputs.key_pressed("SPACE") {
+            px = 0; pz = 0; lives = 3; score = 0; state = "play"; hurt_cool = 0;
+            gems = [];
+            i = 0;
+            while i < GEM_COUNT {
+                p = random_pos();
+                push(gems, [p[0], p[1], true]);
+                i = i + 1;
+            }
+        }
+
+        # ── Camera follows the player ────────────────────────────────────────
+        Mako3D.move_camera(cam, px + 10, 14, pz + 10,  px, 0, pz);
+
+        # ── Draw ─────────────────────────────────────────────────────────────
+        Mako3D.begin();
+        Mako3D.clear(Mako3D.color(15, 15, 24));
+
+        Mako3D.begin_3d(cam);
+
+        # Floor + walls
+        Mako3D.plane(0, 0, 0, ARENA * 2, ARENA * 2, Mako3D.color(34, 38, 48));
+        Mako3D.grid(ARENA * 2, 1);
+        Mako3D.cube(0, 0.5, 0 - ARENA,  ARENA * 2, 1, 0.4, Mako3D.DARKGRAY);
+        Mako3D.cube(0, 0.5, ARENA,      ARENA * 2, 1, 0.4, Mako3D.DARKGRAY);
+        Mako3D.cube(0 - ARENA, 0.5, 0,  0.4, 1, ARENA * 2, Mako3D.DARKGRAY);
+        Mako3D.cube(ARENA, 0.5, 0,      0.4, 1, ARENA * 2, Mako3D.DARKGRAY);
+
+        # Gems — bobbing spheres
+        i = 0;
+        while i < GEM_COUNT {
+            g = gems[i];
+            if g[2] {
+                bob = 1 + sin(t * 3 + i) * 0.25;
+                Mako3D.sphere(g[0], bob, g[1], 0.4, Mako3D.SKYBLUE);
+            }
+            i = i + 1;
+        }
+
+        # Guards — red cubes on patrol
+        i = 0;
+        while i < len(guards) {
+            gd = guards[i];
+            gx = cos(t * gd[2] + gd[0]) * gd[1];
+            gz = sin(t * gd[2] + gd[0]) * gd[1];
+            Mako3D.cube(gx, 0.8, gz,  1.4, 1.6, 1.4, Mako3D.RED);
+            i = i + 1;
+        }
+
+        # Player — gold cube (flashes while invulnerable)
+        show_player = true;
+        if hurt_cool > 0 {
+            flash = floor(hurt_cool * 8);
+            if flash % 2 == 0 { show_player = false; }
+        }
+        if show_player {
+            squish = 1 + sin(t * 10) * 0.04;
+            Mako3D.cube(px, 0.7 * squish, pz,  1, 1.4 * squish, 1, Mako3D.GOLD);
+        }
+
+        Mako3D.end_3d();
+
+        # ── HUD ──────────────────────────────────────────────────────────────
+        Mako3D.text("GEMS {score}/{GEM_COUNT}", 16, 14, 26, Mako3D.SKYBLUE);
+        hearts = "";
+        i = 0;
+        while i < lives { hearts = hearts + "# "; i = i + 1; }
+        Mako3D.text("LIVES {hearts}", 16, 48, 20, Mako3D.RED);
+        Mako3D.text("WASD to move — listen for gem pings", 16, 585, 15, Mako3D.GRAY);
+        Mako3D.draw_fps(830, 14);
+
+        if state == "win" {
+            Mako3D.text("ALL GEMS COLLECTED!", 250, 250, 38, Mako3D.LIME);
+            Mako3D.text("SPACE to play again", 350, 305, 18, Mako3D.LIGHTGRAY);
+        }
+        if state == "lose" {
+            Mako3D.text("CAUGHT BY THE GUARDS", 240, 250, 38, Mako3D.RED);
+            Mako3D.text("SPACE to try again", 355, 305, 18, Mako3D.LIGHTGRAY);
+        }
+
+        Mako3D.end();
+    }
+
+    Mako3D.close();
+}
