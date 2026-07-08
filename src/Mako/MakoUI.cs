@@ -336,6 +336,21 @@ sealed class MakoUI : IDisposable
         return ImGui.Begin(title, ref open, ImGuiWindowFlags.MenuBar);
     }
 
+    /// A real toolbar: a slim strip pinned to the top-left of the window,
+    /// spanning its full width, with no title bar and no resize/move/scroll —
+    /// a fixed row of buttons/icons, not a floating panel. Follow with
+    /// same_line() between buttons, exactly like a real app's toolbar.
+    public bool BeginToolbar(string id, double height = 44)
+    {
+        var vp = ImGui.GetMainViewport();
+        ImGui.SetNextWindowPos(vp.WorkPos);
+        ImGui.SetNextWindowSize(new Vector2(vp.WorkSize.X, (float)height));
+        return ImGui.Begin(id,
+            ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize |
+            ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoScrollbar |
+            ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoCollapse);
+    }
+
     // ── Query ─────────────────────────────────────────────────────────────────
 
     public bool IsItemHovered()              => ImGui.IsItemHovered();

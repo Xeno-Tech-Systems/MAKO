@@ -6,8 +6,11 @@ using MakoUI;
 # second window. Every piece of text, every readout, every control lives in
 # MakoUI panels; Mako3D is used only to render the 3D scene itself.
 #
+#   A TOOLBAR: a slim strip pinned to the top, icon-style buttons in a row
+#   An INSPECTOR: a tabbed floating panel below it for detailed settings
+#
 #   WASD/arrows fly, Q/E up/down, middle mouse orbit, scroll zoom
-#   Tab between "Scene" / "Objects" / "Settings" in the toolbar
+#   Tab between "Scene" / "Objects" / "Settings" in the inspector
 
 const COLORS = [
     [230, 70, 70, 255],    # red
@@ -57,42 +60,65 @@ main() {
 
         Mako3D.end_3d();
 
-        # ── MakoUI toolbar — every readout and control lives here ────────────
+        # ── MakoUI overlay — every readout and control lives here ────────────
         MakoUI.begin();
 
-        MakoUI.set_window_size(320, 360);
-        MakoUI.begin_window("Toolbar");
+        # A real TOOLBAR: slim strip pinned to the top, spanning the full
+        # width, icon-style buttons in a row — Play/Pause, grid toggle, then
+        # one swatch button per color. This is the pattern from a normal
+        # desktop app's toolbar, not a floating settings window.
+        MakoUI.begin_toolbar("main_toolbar", 48);
+
+        spin_label = "Pause";
+        if not spin { spin_label = "Play"; }
+        if MakoUI.button(spin_label) { spin = not spin; }
+
+        MakoUI.same_line();
+        grid_label = "Grid: On";
+        if not show_grid { grid_label = "Grid: Off"; }
+        if MakoUI.button(grid_label) { show_grid = not show_grid; }
+
+        MakoUI.same_line();
+        MakoUI.text("|");
+
+        i = 0;
+        while i < len(COLORS) {
+            MakoUI.same_line();
+            c = COLORS[i];
+            MakoUI.push_color(21, c[0] / 255.0, c[1] / 255.0, c[2] / 255.0); # ImGuiCol.Button
+            if MakoUI.small_button("  ##color{i}") { cube_color_i = i; }
+            MakoUI.pop_color(1);
+            i = i + 1;
+        }
+
+        MakoUI.same_line();
+        MakoUI.text("|");
+        MakoUI.same_line();
+        MakoUI.fps_counter();
+
+        MakoUI.end_window();
+
+        # An INSPECTOR: a normal floating, tabbed panel — for settings that
+        # need more room than a toolbar button (sliders, detailed readouts).
+        MakoUI.set_window_pos(10, 58);
+        MakoUI.set_window_size(300, 220);
+        MakoUI.begin_window("Inspector");
 
         if MakoUI.begin_tab_bar("main_tabs") {
 
             if MakoUI.begin_tab_item("Scene") {
-                MakoUI.fps_counter();
-                MakoUI.separator();
                 MakoUI.text("Camera: WASD fly, MMB orbit, wheel zoom");
                 MakoUI.text("Cube orbit angle: {round(t * 57.3) % 360} deg");
                 MakoUI.end_tab_item();
             }
 
             if MakoUI.begin_tab_item("Objects") {
-                spin = MakoUI.checkbox("Spin", spin);
                 spin_speed = MakoUI.slider("Spin speed", spin_speed, 0, 4);
                 cube_size = MakoUI.slider("Cube size", cube_size, 0.5, 4);
-                MakoUI.text("Cube color");
-                i = 0;
-                while i < len(COLORS) {
-                    MakoUI.same_line();
-                    label = "  ##color{i}";
-                    c = COLORS[i];
-                    MakoUI.push_color(21, c[0] / 255.0, c[1] / 255.0, c[2] / 255.0); # ImGuiCol.Button
-                    if MakoUI.small_button(label) { cube_color_i = i; }
-                    MakoUI.pop_color(1);
-                    i = i + 1;
-                }
                 MakoUI.end_tab_item();
             }
 
             if MakoUI.begin_tab_item("Settings") {
-                show_grid = MakoUI.checkbox("Show grid", show_grid);
                 cam_speed = MakoUI.slider("Camera speed", cam_speed, 1, 20);
                 bg[0] = MakoUI.slider("Background R", bg[0], 0, 255);
                 bg[1] = MakoUI.slider("Background G", bg[1], 0, 255);

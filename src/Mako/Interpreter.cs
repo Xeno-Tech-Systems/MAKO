@@ -637,7 +637,7 @@ class Interpreter
         // MakoUI — lifecycle
         "MakoUI.init", "MakoUI.attach", "MakoUI.running", "MakoUI.begin", "MakoUI.end",
         // MakoUI — windows
-        "MakoUI.begin_window", "MakoUI.end_window", "MakoUI.begin_window_menu",
+        "MakoUI.begin_window", "MakoUI.end_window", "MakoUI.begin_window_menu", "MakoUI.begin_toolbar",
         // MakoUI — widgets
         "MakoUI.text", "MakoUI.text_colored", "MakoUI.button", "MakoUI.small_button",
         "MakoUI.checkbox", "MakoUI.slider", "MakoUI.slider_int",
@@ -1360,6 +1360,14 @@ class Interpreter
             case "MakoUI.begin_window_menu":
                 if (args.Count != 1) throw new MakoError("MakoUI.begin_window_menu() expects 1 argument");
                 EnsureUI(name); result = (object?)_ui!.BeginWindowMenuBar(AsStr(name, args[0])); return true;
+
+            case "MakoUI.begin_toolbar":
+                if (args.Count < 1 || args.Count > 2)
+                    throw new MakoError("MakoUI.begin_toolbar() expects (id, height=44)");
+                EnsureUI(name);
+                result = (object?)_ui!.BeginToolbar(AsStr(name, args[0]),
+                    args.Count > 1 ? AsNum(name, args[1]) : 44);
+                return true;
 
             // ── Query ─────────────────────────────────────────────────────────
             case "MakoUI.is_hovered":
