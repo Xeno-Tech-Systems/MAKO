@@ -23,6 +23,7 @@ class Interpreter
     private bool    _rayActive;
     private bool    _ray2DActive;
     private bool    _ray3DActive;
+    private bool    _inputsActive;
 
     // Each scope holds variable values and a set of const names.
     private sealed class Scope
@@ -119,6 +120,10 @@ class Interpreter
                         SetVar($"Mako3D.{k}", v);
                     _ray3DActive = true;
                 }
+
+                if (pkg.Name.Equals("Inputs", StringComparison.OrdinalIgnoreCase))
+                    _inputsActive = true;
+
                 continue;
             }
 
@@ -1205,6 +1210,14 @@ class Interpreter
                     if (MakoRay3D.Funcs.TryGetValue(fn3, out var fn3d))
                         { result = fn3d(args); return true; }
                     throw new MakoError($"Mako3D.{fn3}() wasn't found");
+                }
+                if (name.StartsWith("Inputs.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_inputsActive) throw new MakoError($"{name}() requires 'using Inputs;'");
+                    var fnI = name["Inputs.".Length..];
+                    if (MakoInputs.Funcs.TryGetValue(fnI, out var fnIn))
+                        { result = fnIn(args); return true; }
+                    throw new MakoError($"Inputs.{fnI}() wasn't found");
                 }
                 return false;
         }

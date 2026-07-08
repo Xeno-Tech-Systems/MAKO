@@ -107,6 +107,73 @@ static class MakoRay3D
         return null;
     }
 
+    /// update_camera(handle, speed=5) — interactive camera control:
+    ///   WASD / arrow keys  — fly forward/back/strafe
+    ///   Q / E              — move up / down
+    ///   Middle mouse drag  — orbit around target
+    ///   Scroll wheel       — zoom toward/away from target
+    public static object? UpdateCamera(List<object?> a)
+    {
+        int id      = a.Count > 0 ? (int)Convert.ToDouble(a[0]) : 0;
+        if (id < 0 || id >= _cameras.Count) return null;
+        float speed = a.Count > 1 ? (float)Convert.ToDouble(a[1]) : 5f;
+
+        var cam = _cameras[id];
+        float dt = Raylib.GetFrameTime();
+
+        var forward = Vector3.Normalize(cam.Target - cam.Position);
+        var right   = Vector3.Normalize(Vector3.Cross(forward, cam.Up));
+
+        // WASD + arrows — move position and target together (fly)
+        if (Raylib.IsKeyDown(KeyboardKey.W) || Raylib.IsKeyDown(KeyboardKey.Up))
+            { cam.Position += forward * speed * dt; cam.Target += forward * speed * dt; }
+        if (Raylib.IsKeyDown(KeyboardKey.S) || Raylib.IsKeyDown(KeyboardKey.Down))
+            { cam.Position -= forward * speed * dt; cam.Target -= forward * speed * dt; }
+        if (Raylib.IsKeyDown(KeyboardKey.A) || Raylib.IsKeyDown(KeyboardKey.Left))
+            { cam.Position -= right * speed * dt; cam.Target -= right * speed * dt; }
+        if (Raylib.IsKeyDown(KeyboardKey.D) || Raylib.IsKeyDown(KeyboardKey.Right))
+            { cam.Position += right * speed * dt; cam.Target += right * speed * dt; }
+        if (Raylib.IsKeyDown(KeyboardKey.Q))
+            { cam.Position -= cam.Up * speed * dt; cam.Target -= cam.Up * speed * dt; }
+        if (Raylib.IsKeyDown(KeyboardKey.E))
+            { cam.Position += cam.Up * speed * dt; cam.Target += cam.Up * speed * dt; }
+
+        // Middle mouse drag — orbit around target
+        if (Raylib.IsMouseButtonDown(MouseButton.Middle))
+        {
+            var delta = Raylib.GetMouseDelta();
+            var toPos = cam.Position - cam.Target;
+            float dist = toPos.Length();
+
+            if (delta.X != 0)  // yaw
+                toPos = Vector3.Transform(toPos, Matrix4x4.CreateRotationY(-delta.X * 0.005f));
+
+            if (delta.Y != 0)  // pitch, clamped so we can't flip over the pole
+            {
+                var axis    = Vector3.Normalize(Vector3.Cross(toPos, cam.Up));
+                var rotated = Vector3.Transform(toPos,
+                    Matrix4x4.CreateFromAxisAngle(axis, -delta.Y * 0.005f));
+                if (Math.Abs(Vector3.Normalize(rotated).Y) < 0.98f)
+                    toPos = rotated;
+            }
+            cam.Position = cam.Target + Vector3.Normalize(toPos) * dist;
+        }
+
+        // Scroll wheel — zoom toward/away from target
+        float wheel = Raylib.GetMouseWheelMove();
+        if (wheel != 0)
+        {
+            var toTarget = cam.Target - cam.Position;
+            float dist   = toTarget.Length();
+            float step   = wheel * Math.Max(dist * 0.1f, 0.1f);
+            if (dist - step > 0.5f)  // don't pass through the target
+                cam.Position += Vector3.Normalize(toTarget) * step;
+        }
+
+        _cameras[id] = cam;
+        return null;
+    }
+
     public static object? Begin3D(List<object?> a)
     {
         int id = a.Count > 0 ? (int)Convert.ToDouble(a[0]) : 0;
@@ -322,25 +389,7 @@ static class MakoRay3D
     private static List<object?> ColorList(Color c) =>
         new() { (object?)(double)c.R, (double)c.G, (double)c.B, (double)c.A };
 
-    private static KeyboardKey ToKey(object? v)
-    {
-        if (v is string s)
-        {
-            if (s.Length == 1) return (KeyboardKey)(int)char.ToUpper(s[0]);
-            return s.ToUpper() switch
-            {
-                "SPACE" => KeyboardKey.Space, "ENTER" => KeyboardKey.Enter,
-                "ESCAPE" => KeyboardKey.Escape, "UP" => KeyboardKey.Up,
-                "DOWN" => KeyboardKey.Down, "LEFT" => KeyboardKey.Left,
-                "RIGHT" => KeyboardKey.Right, "SHIFT" => KeyboardKey.LeftShift,
-                "CTRL" => KeyboardKey.LeftControl, "ALT" => KeyboardKey.LeftAlt,
-                "W" => KeyboardKey.W, "A" => KeyboardKey.A,
-                "S" => KeyboardKey.S, "D" => KeyboardKey.D,
-                _ => KeyboardKey.Null,
-            };
-        }
-        return (KeyboardKey)(int)Convert.ToDouble(v);
-    }
+    private static KeyboardKey ToKey(object? v) => MakoInputs.ToKey(v);
     private static MouseButton ToMouseBtn(object? v)
     {
         if (v is string s) return s.ToLower() switch
@@ -360,7 +409,7 @@ static class MakoRay3D
         ["width"]        = Width,         ["height"]       = Height,
         ["title"]        = SetTitle,      ["draw_fps"]     = DrawFps,
         ["camera"]       = MakeCamera,    ["move_camera"]  = MoveCamera,
-        ["orbit_camera"] = OrbitCamera,
+        ["orbit_camera"] = OrbitCamera,  ["update_camera"]= UpdateCamera,
         ["begin_3d"]     = Begin3D,       ["end_3d"]       = End3D,
         ["cube"]         = DrawCube,      ["cube_raw"]     = DrawCubeRaw,
         ["sphere"]       = DrawSphere,    ["sphere_raw"]   = DrawSphereRaw,

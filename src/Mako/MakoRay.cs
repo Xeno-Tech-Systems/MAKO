@@ -304,31 +304,7 @@ static class MakoRay
             (float)Convert.ToDouble(args[offset]),
             (float)Convert.ToDouble(args[offset + 1]));
 
-    private static KeyboardKey ToKey(object? v)
-    {
-        if (v is string s)
-        {
-            // Accept single-char strings as key names
-            if (s.Length == 1) return (KeyboardKey)(int)char.ToUpper(s[0]);
-            return s.ToUpper() switch
-            {
-                "SPACE"  => KeyboardKey.Space,
-                "ENTER"  => KeyboardKey.Enter,
-                "ESCAPE" => KeyboardKey.Escape,
-                "UP"     => KeyboardKey.Up,
-                "DOWN"   => KeyboardKey.Down,
-                "LEFT"   => KeyboardKey.Left,
-                "RIGHT"  => KeyboardKey.Right,
-                "SHIFT"  => KeyboardKey.LeftShift,
-                "CTRL"   => KeyboardKey.LeftControl,
-                "ALT"    => KeyboardKey.LeftAlt,
-                "TAB"    => KeyboardKey.Tab,
-                "BACKSPACE" => KeyboardKey.Backspace,
-                _        => KeyboardKey.Null,
-            };
-        }
-        return (KeyboardKey)(int)Convert.ToDouble(v);
-    }
+    private static KeyboardKey ToKey(object? v) => MakoInputs.ToKey(v);
 
     private static MouseButton ToMouseBtn(object? v)
     {

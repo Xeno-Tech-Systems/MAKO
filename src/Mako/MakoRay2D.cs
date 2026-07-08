@@ -307,24 +307,7 @@ static class MakoRay2D
     private static List<object?> ColorList(Color c) =>
         new() { (object?)(double)c.R, (double)c.G, (double)c.B, (double)c.A };
 
-    private static KeyboardKey ToKey(object? v)
-    {
-        if (v is string s)
-        {
-            if (s.Length == 1) return (KeyboardKey)(int)char.ToUpper(s[0]);
-            return s.ToUpper() switch
-            {
-                "SPACE" => KeyboardKey.Space, "ENTER" => KeyboardKey.Enter,
-                "ESCAPE" => KeyboardKey.Escape, "UP" => KeyboardKey.Up,
-                "DOWN" => KeyboardKey.Down, "LEFT" => KeyboardKey.Left,
-                "RIGHT" => KeyboardKey.Right, "SHIFT" => KeyboardKey.LeftShift,
-                "CTRL" => KeyboardKey.LeftControl, "ALT" => KeyboardKey.LeftAlt,
-                "TAB" => KeyboardKey.Tab, "BACKSPACE" => KeyboardKey.Backspace,
-                _ => KeyboardKey.Null,
-            };
-        }
-        return (KeyboardKey)(int)Convert.ToDouble(v);
-    }
+    private static KeyboardKey ToKey(object? v) => MakoInputs.ToKey(v);
 
     private static MouseButton ToMouseBtn(object? v)
     {
