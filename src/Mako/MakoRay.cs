@@ -33,6 +33,9 @@ static class MakoRay
         int h     = args.Count > 1 ? (int)Convert.ToDouble(args[1]) : 600;
         string t  = args.Count > 2 ? args[2]?.ToString() ?? "MAKO" : "MAKO";
         Raylib.InitWindow(w, h, t);
+        // Disable raylib's built-in ESC-to-quit: scripts decide when to exit.
+        // (A stray ESC event on window focus was closing windows instantly.)
+        Raylib.SetExitKey(KeyboardKey.Null);
         return null;
     }
 
@@ -43,7 +46,7 @@ static class MakoRay
     }
 
     public static object? Running(List<object?> _) =>
-        (object?)(!Raylib.WindowShouldClose());
+        (object?)(bool)(!Raylib.WindowShouldClose());
 
     public static object? Begin(List<object?> _)
     {
@@ -194,13 +197,13 @@ static class MakoRay
     // ── Input — keyboard ──────────────────────────────────────────────────────
 
     public static object? IsKeyDown(List<object?> args) =>
-        (object?)Raylib.IsKeyDown(ToKey(args[0]));
+        (object?)(bool)Raylib.IsKeyDown(ToKey(args[0]));
 
     public static object? IsKeyPressed(List<object?> args) =>
-        (object?)Raylib.IsKeyPressed(ToKey(args[0]));
+        (object?)(bool)Raylib.IsKeyPressed(ToKey(args[0]));
 
     public static object? IsKeyReleased(List<object?> args) =>
-        (object?)Raylib.IsKeyReleased(ToKey(args[0]));
+        (object?)(bool)Raylib.IsKeyReleased(ToKey(args[0]));
 
     public static object? GetKey(List<object?> _) =>
         (object?)(double)(int)Raylib.GetKeyPressed();
@@ -214,10 +217,10 @@ static class MakoRay
         (object?)(double)Raylib.GetMouseY();
 
     public static object? IsMouseDown(List<object?> args) =>
-        (object?)Raylib.IsMouseButtonDown(ToMouseBtn(args[0]));
+        (object?)(bool)Raylib.IsMouseButtonDown(ToMouseBtn(args[0]));
 
     public static object? IsMousePressed(List<object?> args) =>
-        (object?)Raylib.IsMouseButtonPressed(ToMouseBtn(args[0]));
+        (object?)(bool)Raylib.IsMouseButtonPressed(ToMouseBtn(args[0]));
 
     public static object? MouseWheel(List<object?> _) =>
         (object?)(double)Raylib.GetMouseWheelMove();

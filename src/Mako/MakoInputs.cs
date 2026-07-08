@@ -23,10 +23,10 @@ static class MakoInputs
 {
     // ── Keyboard ──────────────────────────────────────────────────────────────
 
-    public static object? KeyDown(List<object?> a)     => (object?)Raylib.IsKeyDown(ToKey(a[0]));
-    public static object? KeyPressed(List<object?> a)  => (object?)Raylib.IsKeyPressed(ToKey(a[0]));
-    public static object? KeyReleased(List<object?> a) => (object?)Raylib.IsKeyReleased(ToKey(a[0]));
-    public static object? KeyUp(List<object?> a)       => (object?)Raylib.IsKeyUp(ToKey(a[0]));
+    public static object? KeyDown(List<object?> a)     => (object?)(bool)Raylib.IsKeyDown(ToKey(a[0]));
+    public static object? KeyPressed(List<object?> a)  => (object?)(bool)Raylib.IsKeyPressed(ToKey(a[0]));
+    public static object? KeyReleased(List<object?> a) => (object?)(bool)Raylib.IsKeyReleased(ToKey(a[0]));
+    public static object? KeyUp(List<object?> a)       => (object?)(bool)Raylib.IsKeyUp(ToKey(a[0]));
 
     /// last_key() — returns the name of the most recently pressed key, or "" if none.
     public static object? LastKey(List<object?> _)
@@ -49,10 +49,10 @@ static class MakoInputs
 
     // ── Mouse buttons ─────────────────────────────────────────────────────────
 
-    public static object? MouseDown(List<object?> a)    => (object?)Raylib.IsMouseButtonDown(ToBtn(a[0]));
-    public static object? MousePressed(List<object?> a) => (object?)Raylib.IsMouseButtonPressed(ToBtn(a[0]));
-    public static object? MouseReleased(List<object?> a)=> (object?)Raylib.IsMouseButtonReleased(ToBtn(a[0]));
-    public static object? MouseUp(List<object?> a)      => (object?)Raylib.IsMouseButtonUp(ToBtn(a[0]));
+    public static object? MouseDown(List<object?> a)    => (object?)(bool)Raylib.IsMouseButtonDown(ToBtn(a[0]));
+    public static object? MousePressed(List<object?> a) => (object?)(bool)Raylib.IsMouseButtonPressed(ToBtn(a[0]));
+    public static object? MouseReleased(List<object?> a)=> (object?)(bool)Raylib.IsMouseButtonReleased(ToBtn(a[0]));
+    public static object? MouseUp(List<object?> a)      => (object?)(bool)Raylib.IsMouseButtonUp(ToBtn(a[0]));
 
     // ── Cursor control ────────────────────────────────────────────────────────
 
@@ -66,14 +66,14 @@ static class MakoInputs
     public static object? GamepadReady(List<object?> a)
     {
         int id = a.Count > 0 ? (int)Convert.ToDouble(a[0]) : 0;
-        return (object?)Raylib.IsGamepadAvailable(id);
+        return (object?)(bool)Raylib.IsGamepadAvailable(id);
     }
 
     public static object? GamepadBtn(List<object?> a)
     {
         int pad = a.Count > 0 ? (int)Convert.ToDouble(a[0]) : 0;
         int btn = a.Count > 1 ? (int)Convert.ToDouble(a[1]) : 0;
-        return (object?)Raylib.IsGamepadButtonDown(pad, (GamepadButton)btn);
+        return (object?)(bool)Raylib.IsGamepadButtonDown(pad, (GamepadButton)btn);
     }
 
     public static object? GamepadAxis(List<object?> a)

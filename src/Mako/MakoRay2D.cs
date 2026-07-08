@@ -41,11 +41,14 @@ static class MakoRay2D
         int h    = a.Count > 1 ? (int)Convert.ToDouble(a[1]) : 600;
         string t = a.Count > 2 ? a[2]?.ToString() ?? "Mako2D" : "Mako2D";
         Raylib.InitWindow(w, h, t);
+        // Disable raylib's built-in ESC-to-quit: scripts decide when to exit.
+        // (A stray ESC event on window focus was closing windows instantly.)
+        Raylib.SetExitKey(KeyboardKey.Null);
         return null;
     }
 
     public static object? SetFps(List<object?> a)    { Raylib.SetTargetFPS(a.Count > 0 ? (int)Convert.ToDouble(a[0]) : 60); return null; }
-    public static object? Running(List<object?> _)    => (object?)(!Raylib.WindowShouldClose());
+    public static object? Running(List<object?> _)    => (object?)(bool)(!Raylib.WindowShouldClose());
     public static object? Begin(List<object?> _)      { Raylib.BeginDrawing(); return null; }
     public static object? End(List<object?> _)        { Raylib.EndDrawing();   return null; }
     public static object? Close(List<object?> _)      { if (Raylib.IsWindowReady()) Raylib.CloseWindow(); return null; }
@@ -253,13 +256,13 @@ static class MakoRay2D
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
-    public static object? KeyDown(List<object?> a)     => (object?)Raylib.IsKeyDown(ToKey(a[0]));
-    public static object? KeyPressed(List<object?> a)  => (object?)Raylib.IsKeyPressed(ToKey(a[0]));
-    public static object? KeyReleased(List<object?> a) => (object?)Raylib.IsKeyReleased(ToKey(a[0]));
+    public static object? KeyDown(List<object?> a)     => (object?)(bool)Raylib.IsKeyDown(ToKey(a[0]));
+    public static object? KeyPressed(List<object?> a)  => (object?)(bool)Raylib.IsKeyPressed(ToKey(a[0]));
+    public static object? KeyReleased(List<object?> a) => (object?)(bool)Raylib.IsKeyReleased(ToKey(a[0]));
     public static object? MouseX(List<object?> _)      => (object?)(double)Raylib.GetMouseX();
     public static object? MouseY(List<object?> _)      => (object?)(double)Raylib.GetMouseY();
-    public static object? MouseDown(List<object?> a)   => (object?)Raylib.IsMouseButtonDown(ToMouseBtn(a[0]));
-    public static object? MousePressed(List<object?> a)=> (object?)Raylib.IsMouseButtonPressed(ToMouseBtn(a[0]));
+    public static object? MouseDown(List<object?> a)   => (object?)(bool)Raylib.IsMouseButtonDown(ToMouseBtn(a[0]));
+    public static object? MousePressed(List<object?> a)=> (object?)(bool)Raylib.IsMouseButtonPressed(ToMouseBtn(a[0]));
     public static object? MouseWheel(List<object?> _)  => (object?)(double)Raylib.GetMouseWheelMove();
 
     /// screen_to_world(cam, screen_x, screen_y) → [world_x, world_y]
