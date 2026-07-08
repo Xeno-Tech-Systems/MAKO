@@ -566,7 +566,7 @@ class Interpreter
         "type", "to_num", "to_str", "exit", "assert",
         "abs", "floor", "ceil", "sqrt", "round", "pow", "max", "min", "range",
         "clamp", "lerp", "sign", "sin", "cos", "tan", "atan2", "pi",
-        "dist", "rects_overlap", "circles_overlap", "point_in_rect",
+        "dist", "rects_overlap", "circles_overlap", "point_in_rect", "slice",
         "len", "upper", "lower", "trim", "contains", "starts_with", "ends_with",
         "replace", "split", "join",
         "push", "pop", "first", "last", "reverse", "has",
@@ -718,6 +718,29 @@ class Interpreter
                 result = px >= rx && px <= rx + AsNum(name, args[4])
                       && py >= ry && py <= ry + AsNum(name, args[5]);
                 return true;
+            }
+
+            // ── slice(list_or_string, start, end) — end exclusive ─────────────
+            case "slice":
+            {
+                RequireArity(name, args, 3);
+                int sFrom = (int)AsNum(name, args[1]);
+                int sTo   = (int)AsNum(name, args[2]);
+                if (args[0] is List<object?> sl)
+                {
+                    sFrom = Math.Clamp(sFrom, 0, sl.Count);
+                    sTo   = Math.Clamp(sTo,   sFrom, sl.Count);
+                    result = sl.GetRange(sFrom, sTo - sFrom);
+                    return true;
+                }
+                if (args[0] is string ss)
+                {
+                    sFrom = Math.Clamp(sFrom, 0, ss.Length);
+                    sTo   = Math.Clamp(sTo,   sFrom, ss.Length);
+                    result = ss[sFrom..sTo];
+                    return true;
+                }
+                throw new MakoError($"slice() expects a list or string, got {TypeName(args[0])}");
             }
 
             // ── Range ─────────────────────────────────────────────────────────

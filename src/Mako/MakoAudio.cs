@@ -413,6 +413,13 @@ static class MakoAudio
         return null;
     }
 
+    /// master() → current master volume 0.0–1.0
+    public static object? GetMaster(List<object?> _)
+    {
+        EnsureDevice();
+        return (object?)(double)Raylib.GetMasterVolume();
+    }
+
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     public static void UnloadAll()
@@ -467,6 +474,7 @@ static class MakoAudio
         ["music_length"]  = MusicLength,
         ["music_pos"]     = MusicPos,
         ["master_volume"] = MasterVolume,
+        ["master"]        = GetMaster,
         // Synth / music maker
         ["tone"]          = Tone,
         ["note"]          = Note,

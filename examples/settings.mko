@@ -1,0 +1,182 @@
+using Mako2D;
+using Inputs;
+using Audio;
+
+# FPS counter + Audio settings panel
+#   F3         — toggle the FPS overlay (counter + frame-time graph)
+#   TAB        — open / close audio settings
+#   Mouse      — drag the volume sliders, click mute / test
+#
+# A coin bounces around beeping so you can hear your settings live.
+
+const WIDTH = 800;
+const HEIGHT = 520;
+
+# ── Slider: draws + handles dragging, returns updated value ──────────────────
+fn slider(label, x, y, w, value, dragging) {
+    # returns [value, dragging]
+    mx = Inputs.mouse_x();
+    my = Inputs.mouse_y();
+
+    # Start dragging when pressed on the track (generous hitbox)
+    if Inputs.mouse_pressed("left") and point_in_rect(mx, my, x - 8, y - 10, w + 16, 24) {
+        dragging = true;
+    }
+    if not Inputs.mouse_down("left") { dragging = false; }
+
+    if dragging {
+        value = clamp((mx - x) / w, 0, 1);
+    }
+
+    # Track
+    Mako2D.rect_round(x, y, w, 6, 0.9, 4, Mako2D.color(50, 54, 66));
+    # Fill
+    fill_w = w * value;
+    if fill_w > 2 {
+        Mako2D.rect_round(x, y, fill_w, 6, 0.9, 4, Mako2D.SKYBLUE);
+    }
+    # Knob
+    Mako2D.circle(x + fill_w, y + 3, 9, Mako2D.WHITE);
+
+    pct = round(value * 100);
+    Mako2D.text(label, x, y - 24, 16, Mako2D.LIGHTGRAY);
+    Mako2D.text("{pct}%", x + w + 16, y - 6, 16, Mako2D.WHITE);
+
+    return [value, dragging];
+}
+
+fn button(text_label, x, y, w, h) {
+    mx = Inputs.mouse_x();
+    my = Inputs.mouse_y();
+    hover = point_in_rect(mx, my, x, y, w, h);
+    col = Mako2D.color(50, 54, 66);
+    if hover { col = Mako2D.color(70, 76, 92); }
+    Mako2D.rect_round(x, y, w, h, 0.3, 6, col);
+    Mako2D.text(text_label, x + 12, y + h / 2 - 8, 16, Mako2D.WHITE);
+    return hover and Inputs.mouse_pressed("left");
+}
+
+main() {
+    Mako2D.init(WIDTH, HEIGHT, "FPS + Audio Settings");
+    Mako2D.fps(240);   # uncapped-ish so the FPS graph has something to show
+
+    beep = Audio.tone("sine", 740, 0.1);
+    boop = Audio.tone("triangle", 392, 0.15);
+
+    # Settings state
+    show_fps = true;
+    show_settings = false;
+    master_vol = 0.8;
+    sfx_vol = 1.0;
+    muted = false;
+    drag_master = false;
+    drag_sfx = false;
+    Audio.master_volume(master_vol);
+
+    # FPS history for the graph (last 90 frames)
+    history = [];
+
+    # Bouncing coin
+    cx = 300; cy = 250; cdx = 4; cdy = 3;
+
+    while Mako2D.running() {
+        dt = Mako2D.delta();
+
+        if Inputs.key_pressed("F3")  { show_fps = not show_fps; }
+        if Inputs.key_pressed("TAB") { show_settings = not show_settings; }
+
+        # ── Coin ─────────────────────────────────────────────────────────────
+        cx = cx + cdx;
+        cy = cy + cdy;
+        bounced = false;
+        if cx < 16 or cx > WIDTH - 16  { cdx = -cdx; bounced = true; }
+        if cy < 16 or cy > HEIGHT - 16 { cdy = -cdy; bounced = true; }
+        if bounced and not muted {
+            Audio.volume(beep, sfx_vol);
+            Audio.play_at(beep, cx, cy);
+        }
+
+        # ── FPS history ──────────────────────────────────────────────────────
+        fps = Mako2D.get_fps();
+        push(history, fps);
+        if len(history) > 90 {
+            history = slice(history, 1, len(history));
+        }
+
+        # ── Draw ─────────────────────────────────────────────────────────────
+        Mako2D.begin();
+        Mako2D.clear(Mako2D.color(18, 20, 26));
+
+        Mako2D.circle(cx, cy, 14, Mako2D.GOLD);
+        Mako2D.text("F3 = FPS overlay    TAB = audio settings", 20, HEIGHT - 34, 16, Mako2D.GRAY);
+
+        # ── FPS overlay (top-right) ──────────────────────────────────────────
+        if show_fps {
+            panel_x = WIDTH - 220;
+            Mako2D.rect_round(panel_x, 12, 204, 96, 0.15, 6, Mako2D.fade(Mako2D.BLACK, 0.55));
+
+            col = Mako2D.LIME;
+            if fps < 55 { col = Mako2D.GOLD; }
+            if fps < 30 { col = Mako2D.RED; }
+            Mako2D.text("{fps} FPS", panel_x + 12, 22, 26, col);
+
+            ms = 0;
+            if fps > 0 { ms = round(1000.0 / fps * 10) / 10; }
+            Mako2D.text("{ms} ms", panel_x + 130, 30, 16, Mako2D.LIGHTGRAY);
+
+            # Frame-time graph: one bar per sample, scaled against 120 fps
+            gx = panel_x + 12;
+            gy = 100;
+            i = 0;
+            while i < len(history) {
+                h = clamp(history[i] / 120.0, 0, 1) * 42;
+                bar_col = Mako2D.LIME;
+                if history[i] < 55 { bar_col = Mako2D.GOLD; }
+                if history[i] < 30 { bar_col = Mako2D.RED; }
+                Mako2D.rect(gx + i * 2, gy - h, 1, h, bar_col);
+                i = i + 1;
+            }
+        }
+
+        # ── Audio settings panel ─────────────────────────────────────────────
+        if show_settings {
+            px = WIDTH / 2 - 180;
+            py = 120;
+            Mako2D.rect_round(px, py, 360, 260, 0.08, 8, Mako2D.color(30, 33, 42));
+            Mako2D.text("AUDIO SETTINGS", px + 24, py + 18, 22, Mako2D.WHITE);
+
+            r = slider("Master volume", px + 24, py + 80, 240, master_vol, drag_master);
+            new_master = r[0];
+            drag_master = r[1];
+            if new_master != master_vol {
+                master_vol = new_master;
+                Audio.master_volume(master_vol);
+            }
+
+            r = slider("Sound effects", px + 24, py + 140, 240, sfx_vol, drag_sfx);
+            sfx_vol = r[0];
+            drag_sfx = r[1];
+
+            # Mute toggle
+            mute_label = "Mute: OFF";
+            if muted { mute_label = "Mute: ON"; }
+            if button(mute_label, px + 24, py + 180, 120, 34) {
+                muted = not muted;
+                if muted { Audio.master_volume(0); }
+                if not muted { Audio.master_volume(master_vol); }
+            }
+
+            # Test sound
+            if button("Test sound", px + 160, py + 180, 120, 34) {
+                Audio.volume(boop, sfx_vol);
+                Audio.play(boop);
+            }
+
+            Mako2D.text("TAB to close", px + 24, py + 228, 14, Mako2D.GRAY);
+        }
+
+        Mako2D.end();
+    }
+
+    Mako2D.close();
+}
