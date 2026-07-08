@@ -27,7 +27,6 @@ class Interpreter
     private bool    _inputsActive;
     private bool    _audioActive;
     private bool    _netActive;
-    private bool    _hanamiActive;
     public  List<string> ScriptArgs { get; set; } = [];
 
     // Control-flow state for return/break/continue — see the Flow enum above.
@@ -54,16 +53,13 @@ class Interpreter
             // still alive, and CloseWindow must run at most once per process —
             // raylib tears down GL/GLFW unconditionally, so a second close
             // (script already called close()) segfaults on exit.
-            // Hanami can open a raylib window on its own (via its engine-level
-            // init()), even when the script never says 'using Mako3D;' — so it
-            // must count toward window cleanup too.
-            bool hadWindow = _rayActive || _ray2DActive || _ray3DActive || _hanamiActive;
+            bool hadWindow = _rayActive || _ray2DActive || _ray3DActive;
             if (_ray2DActive) MakoRay2D.UnloadAll();
             if (_ray3DActive) MakoRay3D.UnloadAll();
             if (_audioActive) MakoAudio.UnloadAll();
             if (hadWindow && Raylib_cs.Raylib.IsWindowReady())
                 Raylib_cs.Raylib.CloseWindow();
-            _rayActive = _ray2DActive = _ray3DActive = _audioActive = _hanamiActive = false;
+            _rayActive = _ray2DActive = _ray3DActive = _audioActive = false;
         }
     }
 
@@ -148,9 +144,6 @@ class Interpreter
 
                 if (pkg.Name.Equals("Net", StringComparison.OrdinalIgnoreCase))
                     _netActive = true;
-
-                if (pkg.Name.Equals("Hanami", StringComparison.OrdinalIgnoreCase))
-                    _hanamiActive = true;
 
                 continue;
             }
@@ -695,16 +688,6 @@ class Interpreter
         "Net.get", "Net.post", "Net.put", "Net.delete",
         "Net.ok", "Net.status", "Net.body", "Net.error", "Net.json",
         "Net.url_encode", "Net.url_decode",
-        // Hanami — lighting engine
-        "Hanami.set_mode", "Hanami.get_mode", "Hanami.set_ambient",
-        "Hanami.add_light", "Hanami.remove_light", "Hanami.set_light_pos",
-        "Hanami.set_light_color", "Hanami.set_light_intensity", "Hanami.set_light_range",
-        "Hanami.set_light_enabled", "Hanami.light_count", "Hanami.light_info",
-        "Hanami.add_occluder", "Hanami.remove_occluder", "Hanami.clear_occluders", "Hanami.clear_lights",
-        "Hanami.light_at", "Hanami.shade", "Hanami.bake", "Hanami.is_baked",
-        "Hanami.voxel_init", "Hanami.voxel_set_solid", "Hanami.voxel_set_emissive",
-        "Hanami.voxel_bake", "Hanami.voxel_light", "Hanami.voxel_color", "Hanami.voxel_solid",
-        "Hanami.save_config", "Hanami.load_config", "Hanami.reset",
     ];
 
     private bool TryBuiltin(string name, List<object?> args, out object? result)
@@ -1433,14 +1416,6 @@ class Interpreter
                     if (MakoNet.Funcs.TryGetValue(fnN, out var fnNe))
                         { result = fnNe(args); return true; }
                     throw new MakoError($"Net.{fnN}() wasn't found");
-                }
-                if (name.StartsWith("Hanami.", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!_hanamiActive) throw new MakoError($"{name}() requires 'using Hanami;'");
-                    var fnH = name["Hanami.".Length..];
-                    if (Hanami.Funcs.TryGetValue(fnH, out var fnHa))
-                        { result = fnHa(args); return true; }
-                    throw new MakoError($"Hanami.{fnH}() wasn't found");
                 }
                 return false;
         }
