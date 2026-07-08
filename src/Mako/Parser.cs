@@ -125,13 +125,15 @@ class Parser
                 tok.Line, tok.Col, Math.Max(1, tok.Value.Length));
         }
 
-        return new ProgramNode(scriptName, ns, packages, imports, constants, fns, body);
+        return new ProgramNode(scriptName, ns, packages, imports, constants, fns, body,
+                               mainTok?.Line ?? 0);
     }
 
     // ── Declarations ──────────────────────────────────────────────────────────
 
     private FnDecl ParseFnDecl()
     {
+        var fnLine = Current().Line;
         Advance(); // "fn"
         var name = Expect(TokenType.Identifier, "expected a function name after 'fn'").Value;
         var open = Expect(TokenType.LParen, $"missing '(' after function name '{name}'");
@@ -149,7 +151,7 @@ class Parser
             }
         }
         ExpectClosing(TokenType.RParen, ")", open);
-        return new FnDecl(name, parms, ParseBlock());
+        return new FnDecl(name, parms, ParseBlock()) { Line = fnLine };
     }
 
     // ── Statements ────────────────────────────────────────────────────────────
@@ -482,7 +484,12 @@ class Parser
         var tok = Current();
 
         if (Check(TokenType.String))         { Advance(); return new StringLit(tok.Value); }
-        if (Check(TokenType.TemplateString)) { Advance(); return ParseTemplateString(tok.Value, tok.Line, tok.Col); }
+        if (Check(TokenType.TemplateString))
+        {
+            Advance();
+            var expanded = ParseTemplateString(tok.Value, tok.Line, tok.Col);
+            return new TemplateStringExpr(tok.Value, expanded) { Line = tok.Line, Col = tok.Col };
+        }
         if (Check(TokenType.Number))   { Advance(); return new NumberLit(double.Parse(tok.Value, System.Globalization.CultureInfo.InvariantCulture)); }
         if (Check(TokenType.True))     { Advance(); return new BoolLit(true); }
         if (Check(TokenType.False))    { Advance(); return new BoolLit(false); }
@@ -718,10 +725,17 @@ class Parser
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private bool Check(TokenType type) => Current().Type == type;
-    private Token Current() => _tokens[_pos];
+    private Token Current() { SkipComments(); return _tokens[_pos]; }
+
+    private void SkipComments()
+    {
+        while (_pos < _tokens.Count && _tokens[_pos].Type == TokenType.Comment)
+            _pos++;
+    }
 
     private Token Advance()
     {
+        SkipComments();
         var t = _tokens[_pos];
         if (t.Type != TokenType.Eof) _pos++;
         return t;

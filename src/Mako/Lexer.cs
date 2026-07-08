@@ -59,7 +59,7 @@ class Lexer
         var tokens = new List<Token>();
         while (true)
         {
-            SkipWhitespaceAndComments();
+            SkipWhitespace(tokens);
             if (_pos >= _src.Length)
             {
                 tokens.Add(Tok(TokenType.Eof, ""));
@@ -72,7 +72,7 @@ class Lexer
 
     // ── Internal ──────────────────────────────────────────────────────────────
 
-    private void SkipWhitespaceAndComments()
+    private void SkipWhitespace(List<Token>? commentSink = null)
     {
         while (_pos < _src.Length)
         {
@@ -80,9 +80,14 @@ class Lexer
             if (c == '\n') { _line++; _pos++; _lineStart = _pos; continue; }
             if (char.IsWhiteSpace(c)) { _pos++; continue; }
 
-            if (c == '/' && Peek(1) == '/' || c == '#')
+            if (c == '#' || (c == '/' && Peek(1) == '/'))
             {
+                int line = _line, col = CurCol;
+                // Collect comment text (excluding the # / //)
+                int start = c == '#' ? _pos + 1 : _pos + 2;
                 while (_pos < _src.Length && _src[_pos] != '\n') _pos++;
+                var text = _src[start.._pos].TrimEnd();
+                commentSink?.Add(Tok(TokenType.Comment, text, line, col));
                 continue;
             }
             if (c == '/' && Peek(1) == '*')

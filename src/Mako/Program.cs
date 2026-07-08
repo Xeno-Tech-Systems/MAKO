@@ -71,6 +71,49 @@ if (args[0] == "run")
     }
 }
 
+if (args[0] == "fmt")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Usage: mko fmt <file.mko> [--check]");
+        return 1;
+    }
+
+    bool checkOnly = args.Contains("--check");
+    string fmtPath = args.Where(a => !a.StartsWith('-')).Skip(1).FirstOrDefault() ?? "";
+
+    if (!File.Exists(fmtPath))
+    {
+        Console.Error.WriteLine($"mko: file not found: {fmtPath}");
+        return 1;
+    }
+
+    string fmtSource;
+    try { fmtSource = File.ReadAllText(fmtPath); }
+    catch (Exception ex) { Console.Error.WriteLine($"mko: could not read: {ex.Message}"); return 1; }
+
+    string formatted;
+    try { formatted = Formatter.Format(fmtSource); }
+    catch (MakoError ex) { ReportError(ex, fmtSource); return 1; }
+
+    if (checkOnly)
+    {
+        if (formatted == fmtSource)
+        {
+            Console.WriteLine($"{fmtPath}: already formatted");
+            return 0;
+        }
+        Console.WriteLine($"{fmtPath}: needs formatting");
+        return 1;
+    }
+
+    try { File.WriteAllText(fmtPath, formatted); }
+    catch (Exception ex) { Console.Error.WriteLine($"mko: could not write: {ex.Message}"); return 1; }
+
+    Console.WriteLine($"formatted {fmtPath}");
+    return 0;
+}
+
 if (args[0] == "repl")
 {
     RunRepl();
@@ -282,6 +325,8 @@ static void PrintHelp()
 
     Usage:
       mko run <file.mko>            Run a MAKO script
+      mko fmt <file.mko>            Format a MAKO file in-place
+      mko fmt <file.mko> --check   Check if a file is formatted
       mko repl                      Start interactive REPL
       mko get <pkg> [github:U/R]    Install a package
       mko list                      List installed packages

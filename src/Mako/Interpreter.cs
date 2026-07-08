@@ -312,7 +312,8 @@ class Interpreter
 
     private object? EvalCore(Expr expr) => expr switch
     {
-        StringLit s          => s.Value,
+        StringLit s              => s.Value,
+        TemplateStringExpr t     => Eval(t.Expanded),
         NumberLit n          => n.Value,
         BoolLit b            => b.Value,
         NullLit              => null,

@@ -56,6 +56,7 @@ enum TokenType
     Comma,     // ,
     Colon,     // :
 
+    Comment,  // # text — preserved for the formatter
     Eof,
 }
 

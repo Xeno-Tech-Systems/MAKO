@@ -6,6 +6,8 @@ record FnDecl(string Name, List<string> Params, List<Statement> Body)
 {
     /// File the function was loaded from via 'use', or null for the main script.
     public string? Source { get; set; }
+    /// Source line of the 'fn' keyword, for the formatter.
+    public int Line { get; set; }
 }
 
 /// A resolved package reference from a 'using' declaration.
@@ -19,7 +21,8 @@ record ProgramNode(
     List<string> Imports,       // "use file.mko" — local relative file imports
     List<(string Name, Expr Value)> Constants, // top-level const declarations
     List<FnDecl> Functions,
-    List<Statement> Body
+    List<Statement> Body,
+    int MainLine = 0            // source line of the 'main' keyword
 );
 
 // ── Statements ────────────────────────────────────────────────────────────────
@@ -85,6 +88,9 @@ abstract record Expr
 
 /// "hello world"
 record StringLit(string Value) : Expr;
+
+/// "hello {name}" — Raw is the original string content; Expanded is the parsed expression tree.
+record TemplateStringExpr(string Raw, Expr Expanded) : Expr;
 
 /// 42  /  3.14
 record NumberLit(double Value) : Expr;
