@@ -214,7 +214,7 @@ static class Formatter
                 case TryStmt t:
                     _sb.Append($"{Pad}try ");
                     PrintBlock(t.Try);
-                    if (t.Catch.Count > 0)
+                    if (t.HasCatch)
                     {
                         var catchVar = t.CatchVar != null ? $" {t.CatchVar}" : "";
                         _sb.Append($" catch{catchVar} ");

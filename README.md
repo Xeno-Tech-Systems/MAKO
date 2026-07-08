@@ -188,6 +188,7 @@ mko: error (line 4): function 'greeet' wasn't found
 | ------------------------------------------- | --------------------------------------- |
 | `mko <file.mko>` / `mko run <file>`         | Run a script                            |
 | `mko repl`                                  | Interactive REPL                        |
+| `mko test [dir]`                            | Run every `*.mko` file under `tests/` as a regression suite |
 | `mko fmt <file>` / `mko fmt <file> --check` | Format source while preserving comments |
 | `mko get <pkg> [github:User/Repo]`          | Install a package                       |
 | `mko list`                                  | List installed packages                 |
@@ -209,6 +210,7 @@ using mylib from "github:User/Repo";
 | `using Mako3D;` | 3D games: Camera3D, fly/orbit controls, cubes, spheres, models, grid                 |
 | `using Inputs;` | Unified input: keyboard, mouse, cursor lock, gamepad                                 |
 | `using Audio;`  | Sound files, synthesizer, music streaming, 2D/3D positional sound, 8-voice polyphony |
+| `using Net;`    | HTTP requests (GET/POST/PUT/DELETE) + JSON encode/decode                            |
 | `using MakoUI;` | Desktop UIs via Dear ImGui: windows, menus, tables, modals, themes                   |
 
 Game-dev builtins are available without an import:
@@ -444,6 +446,7 @@ MAKO is not trying to replace large engines like Modularity. The goal is to make
 * [Mako3D](docs/mako3d.md)
 * [Inputs](docs/inputs.md)
 * [Audio](docs/audio.md)
+* [Net](docs/net.md) — HTTP requests and JSON
 * [MakoUI](docs/makoui.md)
 * [Game development guide](docs/games.md) — delta time, collision, AI patterns, positional audio
 

@@ -32,6 +32,25 @@ mko fmt script.mko --check    # exit 1 if the file needs formatting
 AST-based: normalizes indentation (4 spaces), spacing, and brace style.
 Preserves standalone comments and template strings exactly.
 
+## Tests
+
+```bash
+mko test              # run every *.mko file under ./tests/
+mko test some/dir      # or a custom directory
+```
+
+Each test file is a normal MAKO script that uses `assert(cond, msg)`. A file
+**passes** if it runs to completion; it **fails** if any assertion throws (or
+any other error occurs), printing the message and line number. Exit code is
+`0` only if every file passed — wire it into CI as-is.
+
+```
+PASS  tests/lists.mko
+FAIL  tests/dicts.mko: Assertion failed: merge — second wins (line 27)
+
+4 passed, 1 failed — see FAIL lines above
+```
+
 ## Packages
 
 ```bash

@@ -1,0 +1,31 @@
+main() {
+    d = {"name": "Robin", "score": 42, "active": true, "note": none};
+    s = json_encode(d);
+    assert(contains(s, "\"name\":\"Robin\""), "encode string field");
+    assert(contains(s, "\"score\":42"), "encode number field");
+    assert(contains(s, "\"active\":true"), "encode bool field");
+    assert(contains(s, "\"note\":null"), "encode none as null");
+
+    back = json_decode(s);
+    assert(back["name"] == "Robin", "decode string roundtrip");
+    assert(back["score"] == 42, "decode number roundtrip");
+    assert(back["active"] == true, "decode bool roundtrip");
+    assert(back["note"] == none, "decode null roundtrip");
+
+    lst = json_encode([1, 2, 3]);
+    assert(lst == "[1,2,3]", "encode list");
+    back_lst = json_decode("[1,2,3]");
+    assert(len(back_lst) == 3 and back_lst[1] == 2, "decode list");
+
+    nested = json_decode(read("tests/fixtures/sample.json"));
+    assert(nested["user"]["name"] == "Ada", "decode nested object from file");
+    assert(nested["user"]["tags"][1] == "science", "decode nested array from file");
+    assert(nested["count"] == 3, "decode sibling number from file");
+
+    # Round-trip through a file
+    write("/tmp/mako_json_roundtrip_test.json", json_encode({"x": 1, "y": [1, 2, 3]}));
+    reloaded = json_decode(read("/tmp/mako_json_roundtrip_test.json"));
+    assert(reloaded["x"] == 1, "file roundtrip — scalar");
+    assert(reloaded["y"][2] == 3, "file roundtrip — nested list");
+    delete("/tmp/mako_json_roundtrip_test.json");
+}

@@ -1,0 +1,61 @@
+main() {
+    # if / else if / else
+    grade = 85;
+    letter = "";
+    if grade >= 90 { letter = "A"; }
+    else if grade >= 80 { letter = "B"; }
+    else if grade >= 70 { letter = "C"; }
+    else { letter = "F"; }
+    assert(letter == "B", "else-if chain");
+
+    # while
+    n = 0;
+    while n < 5 { n = n + 1; }
+    assert(n == 5, "while loop");
+
+    # break
+    total = 0;
+    i = 0;
+    while true {
+        if i >= 3 { break; }
+        total = total + i;
+        i = i + 1;
+    }
+    assert(total == 3, "break exits loop"); # 0+1+2
+
+    # continue
+    sum_odd = 0;
+    j = 0;
+    while j < 10 {
+        j = j + 1;
+        if j % 2 == 0 { continue; }
+        sum_odd = sum_odd + j;
+    }
+    assert(sum_odd == 25, "continue skips iteration"); # 1+3+5+7+9
+
+    # nested loops + break only exits innermost
+    outer_count = 0;
+    a = 0;
+    while a < 3 {
+        b = 0;
+        while b < 3 {
+            if b == 1 { break; }
+            outer_count = outer_count + 1;
+            b = b + 1;
+        }
+        a = a + 1;
+    }
+    assert(outer_count == 3, "break only exits innermost loop");
+
+    # logical short-circuit — the right side must never execute
+    r1 = false and crash_if_called();
+    assert(not r1, "and short-circuits, result is false");
+
+    r2 = true or crash_if_called();
+    assert(r2, "or short-circuits, result is true");
+}
+
+fn crash_if_called() {
+    assert(false, "should never be called due to short-circuit");
+    return false;
+}

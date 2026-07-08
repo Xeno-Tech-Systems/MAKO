@@ -1,0 +1,27 @@
+# Sanity check that mko fmt doesn't crash on constructs across the language:
+# dicts, lambdas, try/catch (including an empty catch body), template strings.
+main() {
+    d = {"a": 1, "b": 2};
+    f = fn(x) => x * 2;
+    g = fn(x) {
+        return x + 1;
+    };
+
+    try {
+        assert(false, "x");
+    } catch {
+    }
+
+    try {
+        assert(true, "y");
+    } catch err {
+        print err;
+    }
+
+    name = "world";
+    assert("hello {name}" == "hello world", "template string works after formatting");
+    assert("{f(2)} and {g(3)} and {d["a"]}" == "4 and 4 and 1", "nested calls + dict index in template");
+
+    assert(f(5) == 10, "lambda still works after being formatted-over");
+    assert(d["b"] == 2, "dict still works");
+}

@@ -387,16 +387,18 @@ class Parser
 
         string? catchVar = null;
         var catchBody = new List<Statement>();
+        bool hasCatch = false;
 
         if (Check(TokenType.Catch))
         {
             Advance(); // catch
+            hasCatch = true;
             if (Check(TokenType.Identifier))
                 catchVar = Advance().Value;
             catchBody = ParseBlock();
         }
 
-        return new TryStmt(tryBody, catchVar, catchBody);
+        return new TryStmt(tryBody, catchVar, catchBody, hasCatch);
     }
 
     // ── Expressions ───────────────────────────────────────────────────────────
@@ -681,12 +683,23 @@ class Parser
                 // Flush accumulated plain text
                 if (sb.Length > 0) { parts.Add(new StringLit(sb.ToString())); sb.Clear(); }
 
-                // Find the matching closing brace (handle nesting)
+                // Find the matching closing brace (handle nesting). Skip over
+                // nested string literals (e.g. dict["key"]) whole so a quoted
+                // '{' or '}' inside one doesn't unbalance the depth count.
                 int depth = 1, start = i + 1;
                 i++;
                 while (i < raw.Length && depth > 0)
                 {
-                    if (raw[i] == '{') depth++;
+                    if (raw[i] == '"')
+                    {
+                        i++;
+                        while (i < raw.Length && raw[i] != '"')
+                        {
+                            if (raw[i] == '\\' && i + 1 < raw.Length) i++;
+                            i++;
+                        }
+                    }
+                    else if (raw[i] == '{') depth++;
                     else if (raw[i] == '}') depth--;
                     if (depth > 0) i++;
                 }

@@ -60,7 +60,8 @@ if (args[0] == "run")
         var tokens  = new Lexer(source).Tokenize();
         var program = new Parser(tokens).Parse();
         var baseDir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
-        new Interpreter().Execute(program, baseDir);
+        var interp  = new Interpreter { ScriptArgs = args.Skip(2).ToList() };
+        interp.Execute(program, baseDir);
         return 0;
     }
     catch (MakoError ex)
@@ -122,6 +123,60 @@ if (args[0] == "repl")
 {
     RunRepl();
     return 0;
+}
+
+if (args[0] == "test")
+{
+    string testDir = args.Length > 1 ? args[1] : "tests";
+    if (!Directory.Exists(testDir))
+    {
+        Console.Error.WriteLine($"mko: test directory not found: {testDir}");
+        return 1;
+    }
+
+    var files = Directory.GetFiles(testDir, "*.mko", SearchOption.AllDirectories)
+        .OrderBy(f => f, StringComparer.Ordinal).ToList();
+    if (files.Count == 0)
+    {
+        Console.WriteLine($"mko: no *.mko files found in {testDir}");
+        return 0;
+    }
+
+    int passed = 0, failed = 0;
+    foreach (var file in files)
+    {
+        var rel = Path.GetRelativePath(".", file);
+        string src;
+        try { src = File.ReadAllText(file); }
+        catch (Exception ex) { Console.WriteLine($"FAIL  {rel}: could not read: {ex.Message}"); failed++; continue; }
+
+        try
+        {
+            var tokens  = new Lexer(src).Tokenize();
+            var program = new Parser(tokens).Parse();
+            var baseDir = Path.GetDirectoryName(Path.GetFullPath(file)) ?? ".";
+            new Interpreter().Execute(program, baseDir);
+            Console.WriteLine($"PASS  {rel}");
+            passed++;
+        }
+        catch (MakoError ex)
+        {
+            var where = ex.Line > 0 ? $" (line {ex.Line})" : "";
+            Console.WriteLine($"FAIL  {rel}: {ex.RawMessage}{where}");
+            failed++;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"FAIL  {rel}: internal error: {ex.Message}");
+            failed++;
+        }
+    }
+
+    Console.WriteLine();
+    Console.WriteLine(failed == 0
+        ? $"{passed} passed, {failed} failed"
+        : $"{passed} passed, {failed} failed — see FAIL lines above");
+    return failed == 0 ? 0 : 1;
 }
 
 if (args[0] == "get")
@@ -332,6 +387,7 @@ static void PrintHelp()
       mko fmt <file.mko>            Format a MAKO file in-place
       mko fmt <file.mko> --check   Check if a file is formatted
       mko repl                      Start interactive REPL
+      mko test [dir]                 Run *.mko files under tests/ (or [dir])
       mko get <pkg> [github:U/R]    Install a package
       mko list                      List installed packages
       mko cache clear [pkg]         Remove cached package(s)
@@ -341,26 +397,37 @@ static void PrintHelp()
     Language features:
       Variables, arithmetic (+  -  *  /  %)
       Compound assignment (+=  -=  *=  /=)
-      Strings, numbers, booleans, lists, none
+      Strings, numbers, booleans, none, lists, dicts
       const  — immutable top-level or block constants
       if / else if / else
-      while  /  for item in list
+      while  /  for item in list  /  for key in dict
       break  /  continue
-      fn / return  (user-defined functions, recursive)
+      fn / return  (recursive, closures via lambdas)
+      fn(x) => expr  /  fn(x) { ... }   — lambdas
+      try / catch  — error handling
       and / or / not  (short-circuit logical)
       print  /  printnl  /  input  /  run
 
     Standard library:
-      String: len  upper  lower  trim  contains
+      String: len  upper  lower  trim  contains  slice
               starts_with  ends_with  replace  split  join
-      List:   len  push  pop  first  last  reverse  has
+      List:   len  push  pop  first  last  reverse  has  slice
+      Dict:   keys  values  has  get  remove  merge
+      Higher-order: map  filter  reduce  sort_by  each  any  all
       Math:   abs  floor  ceil  sqrt  pow  max  min  round
+              clamp  lerp  sign  sin  cos  tan  atan2  pi
+      Game:   dist  rects_overlap  circles_overlap  point_in_rect
+              find_path  line_of_sight  (A* + visibility for AI)
       I/O:    read  write  append  exists  delete  lines
-      System: time  random  random_int  sleep  env
+      System: time  random  random_int  sleep  env  args
+      Data:   json_encode  json_decode
       Util:   type  to_num  to_str  assert
 
     Packages:
-      using MakoUI;                          built-in GUI (Dear ImGui)
+      using MakoUI;                          desktop UI (Dear ImGui)
+      using Mako2D; / using Mako3D;          2D / 3D game rendering
+      using Inputs; / using Audio;           input, sound + synth
+      using Net;                             HTTP requests + JSON
       using mylib from "github:User/Repo";   fetch from GitHub
 
     Example:

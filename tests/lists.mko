@@ -1,0 +1,61 @@
+main() {
+    xs = [1, 2, 3];
+    assert(len(xs) == 3, "len");
+    assert(first(xs) == 1, "first");
+    assert(last(xs) == 3, "last");
+    assert(has(xs, 2), "has true");
+    assert(not has(xs, 9), "has false");
+
+    xs[0] = 99;
+    assert(xs[0] == 99, "index assign");
+
+    push(xs, 4);
+    assert(len(xs) == 4, "push");
+    assert(last(xs) == 4, "push value");
+
+    popped = pop(xs);
+    assert(popped == 4, "pop return value");
+    assert(len(xs) == 3, "pop shrinks");
+
+    rev = reverse([1, 2, 3]);
+    assert(rev[0] == 3 and rev[2] == 1, "reverse");
+
+    combined = [1] + [2, 3];
+    assert(len(combined) == 3, "list concat");
+    assert(combined[2] == 3, "list concat content");
+
+    part = slice([1, 2, 3, 4, 5], 1, 4);
+    assert(len(part) == 3 and part[0] == 2 and part[2] == 4, "slice");
+
+    total = 0;
+    for x in [1, 2, 3, 4] { total = total + x; }
+    assert(total == 10, "for-in list");
+
+    count = 0;
+    for i in range(5) { count = count + 1; }
+    assert(count == 5, "range(n)");
+
+    r = range(2, 5);
+    assert(len(r) == 3 and r[0] == 2, "range(a,b)");
+
+    r2 = range(0, 10, 2);
+    assert(len(r2) == 5 and r2[1] == 2, "range with step");
+
+    # Higher-order
+    doubled = map([1, 2, 3], fn(x) => x * 2);
+    assert(doubled[1] == 4, "map");
+
+    evens = filter([1, 2, 3, 4, 5], fn(x) => x % 2 == 0);
+    assert(len(evens) == 2 and evens[0] == 2, "filter");
+
+    sum = reduce([1, 2, 3, 4], fn(a, b) => a + b, 0);
+    assert(sum == 10, "reduce");
+
+    assert(any([1, 2, 3], fn(x) => x > 2), "any true");
+    assert(not any([1, 2, 3], fn(x) => x > 5), "any false");
+    assert(all([2, 4, 6], fn(x) => x % 2 == 0), "all true");
+    assert(not all([2, 3, 4], fn(x) => x % 2 == 0), "all false");
+
+    sorted = sort_by([3, 1, 2], fn(x) => x);
+    assert(sorted[0] == 1 and sorted[2] == 3, "sort_by");
+}

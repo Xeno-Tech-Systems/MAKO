@@ -180,7 +180,7 @@ class Lexer
         bool isTemplate = false;
         int  braceDepth = 0;
 
-        while (_pos < _src.Length && _src[_pos] != '"')
+        while (_pos < _src.Length && (braceDepth > 0 || _src[_pos] != '"'))
         {
             char c = _src[_pos];
 
@@ -209,7 +209,22 @@ class Lexer
             }
             else
             {
-                // Inside {expr} — pass through so the parser can re-parse it
+                // Inside {expr} — pass through so the parser can re-parse it.
+                // A nested string literal (e.g. dict["key"]) must be skipped
+                // whole so its '"' doesn't terminate the outer string and its
+                // '{'/'}' (if any) don't unbalance the brace count.
+                if (c == '"')
+                {
+                    _pos++;
+                    while (_pos < _src.Length && _src[_pos] != '"')
+                    {
+                        if (_src[_pos] == '\\' && _pos + 1 < _src.Length) _pos++;
+                        if (_src[_pos] == '\n') { _line++; _lineStart = _pos + 1; }
+                        _pos++;
+                    }
+                    if (_pos < _src.Length) _pos++; // closing quote of nested string
+                    continue;
+                }
                 if (c == '{')  braceDepth++;
                 if (c == '}') { braceDepth--; }
                 if (c == '\n') { _line++; _lineStart = _pos + 1; }

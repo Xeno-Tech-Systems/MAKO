@@ -1,0 +1,41 @@
+main() {
+    # 5x5 grid — solid wall row across the middle, gap at the far right column
+    grid = [
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0]
+    ];
+
+    path = find_path(grid, 0, 0, 0, 4);
+    assert(len(path) > 0, "path exists around the wall gap");
+    assert(len(path) == 12, "path takes the expected number of steps");
+    last = path[len(path) - 1];
+    assert(last[0] == 0 and last[1] == 4, "path ends at the goal");
+
+    same = find_path(grid, 2, 2, 2, 2);
+    assert(len(same) == 0, "path to your own cell is empty");
+
+    fully_walled = [[0, 1, 0]];
+    unreachable = find_path(fully_walled, 0, 0, 2, 0);
+    assert(len(unreachable) == 0, "unreachable goal returns empty path");
+
+    into_wall = find_path(grid, 0, 0, 0, 2);
+    assert(len(into_wall) == 0, "a wall cell itself is never a valid goal");
+
+    # Line of sight
+    assert(line_of_sight(grid, 0, 0, 4, 0), "clear line of sight along an open row");
+    assert(not line_of_sight(grid, 0, 0, 0, 4), "wall blocks straight-line vertical sight");
+    assert(line_of_sight(grid, 0, 3, 4, 3), "clear line of sight below the wall");
+
+    # An open grid: sight and shortest path agree on manhattan distance
+    open_grid = [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+    ];
+    assert(line_of_sight(open_grid, 0, 0, 2, 2), "diagonal sight on an open grid");
+    p = find_path(open_grid, 0, 0, 2, 2);
+    assert(len(p) == 4, "shortest 4-connected path has manhattan-distance length");
+}

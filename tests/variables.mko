@@ -1,0 +1,38 @@
+main() {
+    x = 5;
+    assert(x == 5, "basic assignment");
+
+    x = x + 1;
+    assert(x == 6, "reassignment");
+
+    x += 4;
+    assert(x == 10, "+=");
+    x -= 3;
+    assert(x == 7, "-=");
+    x *= 2;
+    assert(x == 14, "*=");
+    x /= 7;
+    assert(x == 2, "/=");
+
+    const PI_ISH = 3;
+    assert(PI_ISH == 3, "const reads");
+
+    ok = false;
+    try {
+        const BAD = 1;
+        BAD = 2;
+    } catch err {
+        ok = true;
+    }
+    assert(ok, "reassigning a const throws");
+
+    a = 1; b = 2; c = 3;
+    assert(a + b + c == 6, "multiple vars");
+
+    n = none;
+    assert(n == none, "none equality");
+    assert(not n, "none is falsy");
+
+    t = true; f = false;
+    assert(t and not f, "bool literals");
+}

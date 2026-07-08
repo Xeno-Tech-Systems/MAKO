@@ -1,0 +1,66 @@
+fn risky(n) {
+    if n < 0 { assert(false, "n must not be negative"); }
+    return n * 2;
+}
+
+main() {
+    caught = false;
+    msg = "";
+    try {
+        risky(-1);
+    } catch err {
+        caught = true;
+        msg = err;
+    }
+    assert(caught, "try/catch catches assert failures");
+    assert(contains(msg, "must not be negative"), "catch variable holds the message");
+
+    # try without catch var
+    caught2 = false;
+    try {
+        assert(false, "boom");
+    } catch {
+        caught2 = true;
+    }
+    assert(caught2, "catch without a variable still catches");
+
+    # code after try/catch still runs
+    ran_after = false;
+    try {
+        assert(false, "fail");
+    } catch err2 {
+    }
+    ran_after = true;
+    assert(ran_after, "execution continues after try/catch");
+
+    # no exception -> catch block skipped
+    catch_ran = false;
+    try {
+        x = 1 + 1;
+    } catch err3 {
+        catch_ran = true;
+    }
+    assert(not catch_ran, "catch is skipped when no error occurs");
+
+    # nested try/catch
+    outer_caught = false;
+    try {
+        try {
+            assert(false, "inner");
+        } catch inner_err {
+            assert(false, "outer: {inner_err}");
+        }
+    } catch outer_err {
+        outer_caught = true;
+    }
+    assert(outer_caught, "an error inside a catch block propagates outward");
+
+    # unknown function / variable errors are catchable
+    caught3 = false;
+    try {
+        totally_unknown_function_xyz();
+    } catch e {
+        caught3 = true;
+    }
+    assert(caught3, "calling an unknown function throws a catchable error");
+}

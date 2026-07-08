@@ -70,8 +70,10 @@ record RunStmt(Expr Command) : Statement;
 /// const name = expr;   (immutable binding)
 record ConstStmt(string Name, Expr Value) : Statement;
 
-/// try { ... } catch err { ... }   (CatchVar may be null)
-record TryStmt(List<Statement> Try, string? CatchVar, List<Statement> Catch) : Statement;
+/// try { ... } catch err { ... }   (CatchVar may be null; HasCatch is false
+/// only when no 'catch' clause was written at all — an empty catch body,
+/// `catch { }`, still has HasCatch = true and must suppress the error.)
+record TryStmt(List<Statement> Try, string? CatchVar, List<Statement> Catch, bool HasCatch) : Statement;
 
 /// A bare expression used as a statement (e.g. a function call).
 record ExprStmt(Expr Value) : Statement;

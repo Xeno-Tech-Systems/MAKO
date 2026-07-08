@@ -1,0 +1,45 @@
+main() {
+    assert(abs(-5) == 5, "abs negative");
+    assert(abs(5) == 5, "abs positive");
+    assert(floor(3.7) == 3, "floor");
+    assert(ceil(3.2) == 4, "ceil");
+    assert(round(3.5) == 4, "round");
+    assert(sqrt(16) == 4, "sqrt");
+    assert(pow(2, 10) == 1024, "pow");
+    assert(max(3, 7) == 7, "max");
+    assert(min(3, 7) == 3, "min");
+
+    assert(clamp(15, 0, 10) == 10, "clamp above range");
+    assert(clamp(-5, 0, 10) == 0, "clamp below range");
+    assert(clamp(5, 0, 10) == 5, "clamp within range");
+
+    assert(lerp(0, 100, 0) == 0, "lerp t=0");
+    assert(lerp(0, 100, 1) == 100, "lerp t=1");
+    assert(lerp(0, 100, 0.5) == 50, "lerp t=0.5");
+
+    assert(sign(-7) == -1, "sign negative");
+    assert(sign(7) == 1, "sign positive");
+    assert(sign(0) == 0, "sign zero");
+
+    assert(cos(0) == 1, "cos(0)");
+    p = pi();
+    assert(sin(p / 2) > 0.999, "sin(pi/2) ~ 1");
+    assert(atan2(1, 1) > 0.78 and atan2(1, 1) < 0.79, "atan2(1,1) ~ pi/4");
+
+    # Geometry / collision
+    assert(dist(0, 0, 3, 4) == 5, "dist — 3-4-5 triangle");
+    assert(rects_overlap(0, 0, 10, 10, 5, 5, 10, 10), "rects overlap");
+    assert(not rects_overlap(0, 0, 10, 10, 20, 20, 5, 5), "rects don't overlap");
+    assert(circles_overlap(0, 0, 5, 8, 0, 5), "circles overlap");
+    assert(not circles_overlap(0, 0, 3, 10, 0, 3), "circles don't overlap");
+    assert(point_in_rect(5, 5, 0, 0, 10, 10), "point inside rect");
+    assert(not point_in_rect(15, 5, 0, 0, 10, 10), "point outside rect");
+
+    n = random_int(5, 5);
+    assert(n == 5, "random_int with equal bounds");
+    n2 = random_int(1, 10);
+    assert(n2 >= 1 and n2 <= 10, "random_int within bounds");
+
+    r = random();
+    assert(r >= 0 and r < 1, "random() in [0, 1)");
+}

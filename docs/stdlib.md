@@ -110,3 +110,13 @@ truthy = wall.
 | `time()` | Unix timestamp (seconds) |
 | `sleep(seconds)` | Pause execution |
 | `env(name)` | Environment variable (or none) |
+| `args()` | List of command-line arguments passed after the script path |
+
+## JSON
+
+| Function | Description |
+|---|---|
+| `json_encode(v)` | Encode a value (dict/list/string/number/bool/none) as a JSON string |
+| `json_decode(s)` | Parse a JSON string into MAKO values (throws on malformed input) |
+
+See [Net](net.md) for HTTP requests, which return JSON-friendly responses.

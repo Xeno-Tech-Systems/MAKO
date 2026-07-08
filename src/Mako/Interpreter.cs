@@ -25,6 +25,8 @@ class Interpreter
     private bool    _ray3DActive;
     private bool    _inputsActive;
     private bool    _audioActive;
+    private bool    _netActive;
+    public  List<string> ScriptArgs { get; set; } = [];
 
     // Each scope holds variable values and a set of const names.
     private sealed class Scope
@@ -130,6 +132,9 @@ class Interpreter
 
                 if (pkg.Name.Equals("Audio", StringComparison.OrdinalIgnoreCase))
                     _audioActive = true;
+
+                if (pkg.Name.Equals("Net", StringComparison.OrdinalIgnoreCase))
+                    _netActive = true;
 
                 continue;
             }
@@ -313,7 +318,7 @@ class Interpreter
                     try   { foreach (var s in ts.Try) RunStatement(s); }
                     finally { PopScope(); }
                 }
-                catch (MakoError e) when (ts.Catch.Count > 0)
+                catch (MakoError e) when (ts.HasCatch)
                 {
                     PushScope();
                     if (ts.CatchVar != null) SetVar(ts.CatchVar, e.RawMessage);
@@ -321,7 +326,7 @@ class Interpreter
                     finally { PopScope(); }
                 }
                 catch (Exception e) when (e is not (ReturnSignal or BreakSignal or ContinueSignal)
-                                              && ts.Catch.Count > 0)
+                                              && ts.HasCatch)
                 {
                     PushScope();
                     if (ts.CatchVar != null) SetVar(ts.CatchVar, e.Message);
@@ -568,6 +573,7 @@ class Interpreter
         "clamp", "lerp", "sign", "sin", "cos", "tan", "atan2", "pi",
         "dist", "rects_overlap", "circles_overlap", "point_in_rect", "slice",
         "find_path", "line_of_sight",
+        "args", "json_encode", "json_decode",
         "len", "upper", "lower", "trim", "contains", "starts_with", "ends_with",
         "replace", "split", "join",
         "push", "pop", "first", "last", "reverse", "has",
@@ -628,6 +634,10 @@ class Interpreter
         "MakoRay.color", "MakoRay.fade",
         // MakoRay — audio
         "MakoRay.init_audio", "MakoRay.close_audio",
+        // Net
+        "Net.get", "Net.post", "Net.put", "Net.delete",
+        "Net.ok", "Net.status", "Net.body", "Net.error", "Net.json",
+        "Net.url_encode", "Net.url_decode",
     ];
 
     private bool TryBuiltin(string name, List<object?> args, out object? result)
@@ -1012,6 +1022,23 @@ class Interpreter
                 result = (object?)(Environment.GetEnvironmentVariable(AsStr(name, args[0])) ?? "");
                 return true;
 
+            case "args":
+                RequireArity(name, args, 0);
+                result = ScriptArgs.Select(a2 => (object?)a2).ToList();
+                return true;
+
+            // ── JSON ──────────────────────────────────────────────────────────
+            case "json_encode":
+                RequireArity(name, args, 1);
+                result = Json.Encode(args[0]);
+                return true;
+
+            case "json_decode":
+                RequireArity(name, args, 1);
+                try { result = Json.Decode(AsStr(name, args[0])); }
+                catch (Exception ex) { throw new MakoError($"json_decode(): {ex.Message}"); }
+                return true;
+
             // ── MakoUI ────────────────────────────────────────────────────────
             case "MakoUI.init":
                 RequireArity(name, args, 3);
@@ -1331,6 +1358,14 @@ class Interpreter
                     if (MakoAudio.Funcs.TryGetValue(fnA, out var fnAu))
                         { result = fnAu(args); return true; }
                     throw new MakoError($"Audio.{fnA}() wasn't found");
+                }
+                if (name.StartsWith("Net.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_netActive) throw new MakoError($"{name}() requires 'using Net;'");
+                    var fnN = name["Net.".Length..];
+                    if (MakoNet.Funcs.TryGetValue(fnN, out var fnNe))
+                        { result = fnNe(args); return true; }
+                    throw new MakoError($"Net.{fnN}() wasn't found");
                 }
                 return false;
         }

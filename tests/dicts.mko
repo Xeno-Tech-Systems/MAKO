@@ -1,0 +1,38 @@
+main() {
+    d = {"name": "Robin", "score": 42};
+    assert(d["name"] == "Robin", "index read");
+    assert(len(d) == 2, "len");
+
+    d["score"] = 50;
+    assert(d["score"] == 50, "index assign");
+
+    d["new"] = true;
+    assert(len(d) == 3, "new key grows dict");
+    assert(has(d, "new"), "has true");
+    assert(not has(d, "missing"), "has false");
+
+    remove(d, "new");
+    assert(not has(d, "new"), "remove");
+    assert(len(d) == 2, "remove shrinks");
+
+    assert(get(d, "name", "default") == "Robin", "get existing");
+    assert(get(d, "missing", "default") == "default", "get missing uses default");
+
+    ks = keys(d);
+    assert(len(ks) == 2, "keys");
+    vs = values(d);
+    assert(len(vs) == 2, "values");
+
+    merged = merge({"a": 1}, {"b": 2});
+    assert(merged["a"] == 1 and merged["b"] == 2, "merge");
+
+    overridden = merge({"a": 1}, {"a": 99});
+    assert(overridden["a"] == 99, "merge — second wins");
+
+    total_keys = 0;
+    for k in {"x": 1, "y": 2, "z": 3} { total_keys = total_keys + 1; }
+    assert(total_keys == 3, "for-in dict iterates keys");
+
+    empty = {};
+    assert(len(empty) == 0, "empty dict literal");
+}
