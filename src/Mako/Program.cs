@@ -36,16 +36,10 @@ if (args[0] == "run")
         return 1;
     }
 
-    string path = args[1];
-    if (!File.Exists(path))
+    string? path = ResolvePath(args[1]);
+    if (path == null)
     {
-        Console.Error.WriteLine($"mko: file not found: {path}");
-        return 1;
-    }
-    // Allow extension-less files when invoked via shebang (#! line).
-    if (!path.EndsWith(".mko", StringComparison.OrdinalIgnoreCase) && !File.Exists(path))
-    {
-        Console.Error.WriteLine($"mko: file not found: {path}");
+        Console.Error.WriteLine($"mko: file not found: {args[1]}");
         return 1;
     }
 
@@ -370,6 +364,19 @@ static void PrintHelp()
       using mylib from "github:User/Repo";   fetch from GitHub
 
     Example:
-      mko run examples/hello.mko
+      mko hello.mko
+      mko run ~/scripts/hello.mko
     """);
+}
+
+// Resolve a script path: try as-is, then relative to ~/.local/share/mko/
+static string? ResolvePath(string input)
+{
+    if (File.Exists(input)) return input;
+    // Try ~/.local/share/mko/<input>
+    var global = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".local", "share", "mko", input);
+    if (File.Exists(global)) return global;
+    return null;
 }

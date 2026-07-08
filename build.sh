@@ -43,7 +43,14 @@ case "$cmd" in
         cp "$OUT/mko" ~/.local/bin/mko
         chmod +x ~/.local/bin/mko
         echo "Installed: ~/.local/bin/mko"
-        echo "Make sure ~/.local/bin is in your PATH."
+
+        # Install examples so `mko examples/hello.mko` works from anywhere.
+        MKO_DATA="$HOME/.local/share/mko"
+        mkdir -p "$MKO_DATA"
+        if [ -d "$SCRIPT_DIR/examples" ]; then
+            cp -r "$SCRIPT_DIR/examples" "$MKO_DATA/"
+            echo "Installed examples → $MKO_DATA/examples/"
+        fi
         ;;
 
     clean)
