@@ -219,6 +219,20 @@ if MakoUI.begin_modal("confirm") {
 }
 ```
 
+`begin_modal(id)` blocks interaction with the rest of the UI until closed —
+use it for confirmations. `begin_popup(id)` is the non-modal form: it opens
+at the current position, stays interactive alongside the rest of the UI,
+and closes automatically on an outside click.
+
+```mako
+if MakoUI.button("Options") { MakoUI.open_popup("opts"); }
+if MakoUI.begin_popup("opts") {
+    if MakoUI.button("Save")   { MakoUI.close_popup(); }
+    if MakoUI.button("Cancel") { MakoUI.close_popup(); }
+    MakoUI.end_popup();
+}
+```
+
 ## Tables
 
 ```mako
