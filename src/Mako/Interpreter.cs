@@ -567,6 +567,7 @@ class Interpreter
         "abs", "floor", "ceil", "sqrt", "round", "pow", "max", "min", "range",
         "clamp", "lerp", "sign", "sin", "cos", "tan", "atan2", "pi",
         "dist", "rects_overlap", "circles_overlap", "point_in_rect", "slice",
+        "find_path", "line_of_sight",
         "len", "upper", "lower", "trim", "contains", "starts_with", "ends_with",
         "replace", "split", "join",
         "push", "pop", "first", "last", "reverse", "has",
@@ -717,6 +718,32 @@ class Interpreter
                 double rx = AsNum(name, args[2]), ry = AsNum(name, args[3]);
                 result = px >= rx && px <= rx + AsNum(name, args[4])
                       && py >= ry && py <= ry + AsNum(name, args[5]);
+                return true;
+            }
+
+            // ── Pathfinding (for game AI) ─────────────────────────────────────
+            // find_path(grid, sx, sy, ex, ey) → list of [x, y] steps (excludes
+            // start, includes goal), or [] if unreachable. grid = list of rows,
+            // each row a list where 0/false = walkable, anything truthy = wall.
+            case "find_path":
+            {
+                RequireArity(name, args, 5);
+                var grid = AsList(name, args[0]);
+                int sx = (int)AsNum(name, args[1]), sy = (int)AsNum(name, args[2]);
+                int ex = (int)AsNum(name, args[3]), ey = (int)AsNum(name, args[4]);
+                result = FindPath(grid, sx, sy, ex, ey);
+                return true;
+            }
+
+            // line_of_sight(grid, x1, y1, x2, y2) → true if no wall cell blocks
+            // the straight line between the two cells (Bresenham).
+            case "line_of_sight":
+            {
+                RequireArity(name, args, 5);
+                var grid = AsList(name, args[0]);
+                int x1 = (int)AsNum(name, args[1]), y1 = (int)AsNum(name, args[2]);
+                int x2 = (int)AsNum(name, args[3]), y2 = (int)AsNum(name, args[4]);
+                result = LineOfSight(grid, x1, y1, x2, y2);
                 return true;
             }
 
@@ -1422,6 +1449,87 @@ class Interpreter
         null            => false,
         _               => true,
     };
+
+    // ── Grid pathfinding helpers ──────────────────────────────────────────────
+
+    private static bool GridBlocked(List<object?> grid, int x, int y)
+    {
+        if (y < 0 || y >= grid.Count) return true;
+        if (grid[y] is not List<object?> row) return true;
+        if (x < 0 || x >= row.Count) return true;
+        return Truthy(row[x]);
+    }
+
+    /// A* over a 4-connected grid. Returns steps after the start, goal included.
+    private static List<object?> FindPath(List<object?> grid, int sx, int sy, int ex, int ey)
+    {
+        var empty = new List<object?>();
+        if (GridBlocked(grid, sx, sy) || GridBlocked(grid, ex, ey)) return empty;
+        if (sx == ex && sy == ey) return empty;
+
+        int rows = grid.Count;
+        int cols = 0;
+        foreach (var r in grid)
+            if (r is List<object?> rl) cols = Math.Max(cols, rl.Count);
+
+        var open    = new PriorityQueue<(int x, int y), int>();
+        var gScore  = new Dictionary<(int, int), int>();
+        var parent  = new Dictionary<(int, int), (int, int)>();
+
+        gScore[(sx, sy)] = 0;
+        open.Enqueue((sx, sy), Math.Abs(ex - sx) + Math.Abs(ey - sy));
+
+        Span<(int dx, int dy)> dirs = stackalloc[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+        while (open.Count > 0)
+        {
+            var cur = open.Dequeue();
+            if (cur.x == ex && cur.y == ey)
+            {
+                // Reconstruct: goal back to (but not including) start
+                var path = new List<object?>();
+                var node = (cur.x, cur.y);
+                while (node != (sx, sy))
+                {
+                    path.Add(new List<object?> { (object?)(double)node.Item1, (double)node.Item2 });
+                    node = parent[node];
+                }
+                path.Reverse();
+                return path;
+            }
+
+            int g = gScore[(cur.x, cur.y)];
+            foreach (var (dx, dy) in dirs)
+            {
+                int nx = cur.x + dx, ny = cur.y + dy;
+                if (GridBlocked(grid, nx, ny)) continue;
+                int ng = g + 1;
+                if (gScore.TryGetValue((nx, ny), out int prev) && prev <= ng) continue;
+                gScore[(nx, ny)] = ng;
+                parent[(nx, ny)] = (cur.x, cur.y);
+                open.Enqueue((nx, ny), ng + Math.Abs(ex - nx) + Math.Abs(ey - ny));
+            }
+        }
+        return empty;   // unreachable
+    }
+
+    /// Bresenham line between cell centres; false if any wall cell is crossed.
+    private static bool LineOfSight(List<object?> grid, int x1, int y1, int x2, int y2)
+    {
+        int dx = Math.Abs(x2 - x1), dy = Math.Abs(y2 - y1);
+        int stepX = x1 < x2 ? 1 : -1, stepY = y1 < y2 ? 1 : -1;
+        int err = dx - dy;
+        int x = x1, y = y1;
+
+        while (true)
+        {
+            if (GridBlocked(grid, x, y)) return false;
+            if (x == x2 && y == y2) return true;
+            int e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; x += stepX; }
+            if (e2 <  dx) { err += dx; y += stepY; }
+        }
+    }
 
     private static bool ValuesEqual(object? a, object? b)
     {

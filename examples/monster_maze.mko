@@ -1,0 +1,332 @@
+using Mako3D;
+using Inputs;
+using Audio;
+
+# MONSTER MAZE — pathfinding AI demo
+#
+#   WASD / arrows — move
+#   P             — show the monster's current path + state
+#   SPACE         — restart
+#
+# Collect all 6 gems. The monster has three AI states:
+#   PATROL (purple) — wanders to random rooms via A* pathfinding
+#   CHASE  (red)    — spotted you (line of sight) — hunts you down, repaths
+#                     to your position twice a second
+#   SEARCH (orange) — lost sight of you — checks the last place it saw you,
+#                     then goes back to patrolling
+#
+# It cannot see through walls. Break line of sight to escape!
+
+const COLS = 17;
+const ROWS = 13;
+
+fn make_grid() {
+    # 1 = wall, 0 = floor
+    map = [
+        "#################",
+        "#.....#....#....#",
+        "#.###.#.##.#.##.#",
+        "#.#...#.#..#..#.#",
+        "#.#.###.#.###.#.#",
+        "#.......#.....#.#",
+        "###.#####.###...#",
+        "#...#.....#.#.#.#",
+        "#.#.#.###.#.#.#.#",
+        "#.#...#.#.#...#.#",
+        "#.##.##.#.##.##.#",
+        "#....#.......#..#",
+        "#################"
+    ];
+    grid = [];
+    y = 0;
+    while y < ROWS {
+        row = [];
+        x = 0;
+        while x < COLS {
+            cell = 0;
+            if map[y][x] == "#" { cell = 1; }
+            push(row, cell);
+            x = x + 1;
+        }
+        push(grid, row);
+        y = y + 1;
+    }
+    return grid;
+}
+
+# grid cell → world position (cell centre)
+fn wx(cx) { return cx - 8; }        # COLS/2 = 8.5, offset for centering
+fn wz(cy) { return cy - 6; }
+
+fn cell_x(world_x) { return round(world_x + 8); }
+fn cell_z(world_z) { return round(world_z + 6); }
+
+fn random_floor(grid) {
+    while true {
+        x = random_int(1, COLS - 2);
+        y = random_int(1, ROWS - 2);
+        if grid[y][x] == 0 { return [x, y]; }
+    }
+}
+
+main() {
+    Mako3D.init(960, 640, "Monster Maze");
+    Mako3D.fps(60);
+
+    cam = Mako3D.camera(0, 16, 9,  0, 0, 0);
+    grid = make_grid();
+
+    snd_gem    = Audio.melody("sine", ["E5:0.2", "B5:0.3"], 240);
+    snd_spot   = Audio.melody("saw", ["C3:0.15", "F#3:0.3"], 280);
+    snd_lost   = Audio.tone("triangle", 262, 0.3);
+    snd_caught = Audio.melody("saw", ["G3:0.4", "C3:0.8"], 160);
+    snd_win    = Audio.melody("square", ["C4:0.4", "E4:0.4", "G4:0.4", "C5:1.2"], 190);
+    snd_growl  = Audio.tone("noise", 100, 0.25);
+    Audio.volume(snd_growl, 0.8);
+    Audio.pitch(snd_growl, 0.4);
+
+    # ── Player ───────────────────────────────────────────────────────────────
+    px = wx(1); pz = wz(1);
+    lives = 3;
+    score = 0;
+    state = "play";
+    hurt_cool = 0;
+
+    # ── Gems ─────────────────────────────────────────────────────────────────
+    gems = [];
+    i = 0;
+    while i < 6 {
+        c = random_floor(grid);
+        push(gems, [c[0], c[1], true]);
+        i = i + 1;
+    }
+
+    # ── Monster ──────────────────────────────────────────────────────────────
+    m_cell = [15, 11];
+    mx = wx(15); mz = wz(11);
+    m_state = "patrol";       # patrol | chase | search
+    m_path = [];
+    m_repath = 0;
+    m_lost_t = 0;
+    last_seen = [1, 1];
+    growl_t = 0;
+    show_debug = false;
+    t = 0;
+
+    while Mako3D.running() {
+        dt = Mako3D.delta();
+        t = t + dt;
+
+        if Inputs.key_pressed("P") { show_debug = not show_debug; }
+
+        # ── Player movement with wall collision ──────────────────────────────
+        if state == "play" {
+            spd = 5.5 * dt;
+            nx = px; nz = pz;
+            if Inputs.key_down("W") or Inputs.key_down("UP")    { nz = nz - spd; }
+            if Inputs.key_down("S") or Inputs.key_down("DOWN")  { nz = nz + spd; }
+            if Inputs.key_down("A") or Inputs.key_down("LEFT")  { nx = nx - spd; }
+            if Inputs.key_down("D") or Inputs.key_down("RIGHT") { nx = nx + spd; }
+
+            # Try each axis separately so you slide along walls
+            if grid[cell_z(pz)][cell_x(nx)] == 0 { px = nx; }
+            if grid[cell_z(nz)][cell_x(px)] == 0 { pz = nz; }
+
+            # Gems
+            i = 0;
+            while i < 6 {
+                g = gems[i];
+                if g[2] and dist(px, pz, wx(g[0]), wz(g[1])) < 0.7 {
+                    gems[i] = [g[0], g[1], false];
+                    score = score + 1;
+                    Audio.play(snd_gem);
+                    if score >= 6 { state = "win"; Audio.play(snd_win); }
+                }
+                i = i + 1;
+            }
+
+            # ── Monster AI state machine ─────────────────────────────────────
+            pcx = cell_x(px);  pcz = cell_z(pz);
+            mcx = cell_x(mx);  mcz = cell_z(mz);
+            sees = line_of_sight(grid, mcx, mcz, pcx, pcz);
+
+            if m_state == "patrol" {
+                if sees {
+                    m_state = "chase";
+                    Audio.play(snd_spot);
+                    m_path = find_path(grid, mcx, mcz, pcx, pcz);
+                } else {
+                    if len(m_path) == 0 {
+                        target = random_floor(grid);
+                        m_path = find_path(grid, mcx, mcz, target[0], target[1]);
+                    }
+                }
+            }
+
+            if m_state == "chase" {
+                if sees {
+                    m_lost_t = 0;
+                    last_seen = [pcx, pcz];
+                    m_repath = m_repath + dt;
+                    if m_repath > 0.5 {
+                        m_repath = 0;
+                        m_path = find_path(grid, mcx, mcz, pcx, pcz);
+                    }
+                } else {
+                    m_lost_t = m_lost_t + dt;
+                    if m_lost_t > 1.2 {
+                        m_state = "search";
+                        Audio.play(snd_lost);
+                        m_path = find_path(grid, mcx, mcz, last_seen[0], last_seen[1]);
+                    }
+                }
+            }
+
+            if m_state == "search" {
+                if sees {
+                    m_state = "chase";
+                    Audio.play(snd_spot);
+                    m_path = find_path(grid, mcx, mcz, pcx, pcz);
+                } else {
+                    if len(m_path) == 0 {
+                        m_state = "patrol";     # gave up
+                    }
+                }
+            }
+
+            # ── Follow the path ──────────────────────────────────────────────
+            m_speed = 3.2;
+            if m_state == "chase" { m_speed = 4.6; }
+            if len(m_path) > 0 {
+                step = m_path[0];
+                tx = wx(step[0]);
+                tz = wz(step[1]);
+                d = dist(mx, mz, tx, tz);
+                if d < 0.1 {
+                    m_path = slice(m_path, 1, len(m_path));
+                } else {
+                    mx = mx + (tx - mx) / d * m_speed * dt;
+                    mz = mz + (tz - mz) / d * m_speed * dt;
+                }
+            }
+
+            # Growl louder as it gets closer (3D positional)
+            growl_t = growl_t + dt;
+            if growl_t > 1.4 {
+                growl_t = 0;
+                Audio.play_3d(snd_growl, mx, 1, mz,  px, 1, pz);
+            }
+
+            # Caught?
+            hurt_cool = max(0, hurt_cool - dt);
+            if hurt_cool == 0 and dist(px, pz, mx, mz) < 0.8 {
+                lives = lives - 1;
+                hurt_cool = 2;
+                Audio.play(snd_caught);
+                px = wx(1); pz = wz(1);       # back to spawn
+                if lives <= 0 { state = "lose"; }
+            }
+        }
+
+        # Restart
+        if state != "play" and Inputs.key_pressed("SPACE") {
+            px = wx(1); pz = wz(1);
+            mx = wx(15); mz = wz(11);
+            m_state = "patrol"; m_path = [];
+            lives = 3; score = 0; state = "play"; hurt_cool = 0;
+            gems = [];
+            i = 0;
+            while i < 6 {
+                c = random_floor(grid);
+                push(gems, [c[0], c[1], true]);
+                i = i + 1;
+            }
+        }
+
+        # ── Camera: overhead follow ──────────────────────────────────────────
+        Mako3D.move_camera(cam, px, 15, pz + 8,  px, 0, pz);
+
+        # ── Draw ─────────────────────────────────────────────────────────────
+        Mako3D.begin();
+        Mako3D.clear(Mako3D.color(10, 10, 16));
+
+        Mako3D.begin_3d(cam);
+
+        Mako3D.plane(0.5, 0, 0.5, COLS, ROWS, Mako3D.color(30, 32, 40));
+
+        # Walls
+        y = 0;
+        while y < ROWS {
+            x = 0;
+            while x < COLS {
+                if grid[y][x] == 1 {
+                    Mako3D.cube_raw(wx(x), 0.75, wz(y), 1, 1.5, 1, Mako3D.color(52, 56, 72));
+                }
+                x = x + 1;
+            }
+            y = y + 1;
+        }
+
+        # Gems
+        i = 0;
+        while i < 6 {
+            g = gems[i];
+            if g[2] {
+                bob = 0.5 + sin(t * 3 + i * 2) * 0.15;
+                Mako3D.sphere(wx(g[0]), bob, wz(g[1]), 0.22, Mako3D.SKYBLUE);
+            }
+            i = i + 1;
+        }
+
+        # Monster — color shows its AI state
+        m_col = Mako3D.VIOLET;
+        if m_state == "chase"  { m_col = Mako3D.RED; }
+        if m_state == "search" { m_col = Mako3D.ORANGE; }
+        pulse = 1 + sin(t * 8) * 0.08;
+        Mako3D.cube(mx, 0.8 * pulse, mz, 0.9, 1.6 * pulse, 0.9, m_col);
+        Mako3D.sphere(mx, 1.7, mz, 0.18, Mako3D.WHITE);   # eye
+
+        # Debug: draw the monster's path
+        if show_debug {
+            i = 0;
+            while i < len(m_path) - 1 {
+                a = m_path[i];
+                b = m_path[i + 1];
+                Mako3D.line3d(wx(a[0]), 0.2, wz(a[1]),  wx(b[0]), 0.2, wz(b[1]), Mako3D.YELLOW);
+                i = i + 1;
+            }
+        }
+
+        # Player
+        show_player = true;
+        if hurt_cool > 0 and floor(hurt_cool * 8) % 2 == 0 { show_player = false; }
+        if show_player {
+            Mako3D.cube(px, 0.5, pz, 0.7, 1, 0.7, Mako3D.GOLD);
+        }
+
+        Mako3D.end_3d();
+
+        # ── HUD ──────────────────────────────────────────────────────────────
+        Mako3D.text("GEMS {score}/6    LIVES {lives}", 16, 14, 24, Mako3D.WHITE);
+        state_txt = "The monster patrols...";
+        state_col = Mako3D.VIOLET;
+        if m_state == "chase"  { state_txt = "IT SEES YOU — RUN!"; state_col = Mako3D.RED; }
+        if m_state == "search" { state_txt = "It's searching where it saw you..."; state_col = Mako3D.ORANGE; }
+        Mako3D.text(state_txt, 16, 46, 18, state_col);
+        Mako3D.text("P = show AI path", 16, 610, 14, Mako3D.GRAY);
+        Mako3D.draw_fps(890, 14);
+
+        if state == "win" {
+            Mako3D.text("YOU ESCAPED WITH THE GEMS!", 240, 280, 34, Mako3D.LIME);
+            Mako3D.text("SPACE to play again", 400, 330, 18, Mako3D.LIGHTGRAY);
+        }
+        if state == "lose" {
+            Mako3D.text("THE MONSTER GOT YOU", 290, 280, 34, Mako3D.RED);
+            Mako3D.text("SPACE to try again", 400, 330, 18, Mako3D.LIGHTGRAY);
+        }
+
+        Mako3D.end();
+    }
+
+    Mako3D.close();
+}
