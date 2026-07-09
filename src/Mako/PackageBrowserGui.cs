@@ -15,7 +15,7 @@ static class PackageBrowserGui
     {
         var entries = PackageRegistry.All();
         string query = initialQuery ?? "";
-        string current = selected ?? entries.FirstOrDefault(e => Matches(e, query))?.Name ?? "";
+        string current = selected ?? PackageRegistry.Search(query).FirstOrDefault()?.Name ?? "";
 
         var ui = new MakoUI();
         ui.Init("MAKO Package Browser", 760, 460);
@@ -42,7 +42,7 @@ static class PackageBrowserGui
                 ImGui.SetNextItemWidth(-1);
                 ImGui.InputTextWithHint("##query", "Search packages...", ref query, 128);
 
-                var matches = entries.Where(e => Matches(e, query)).ToList();
+                var matches = PackageRegistry.Search(query).ToList();
                 ImGui.Spacing();
                 foreach (var e in matches)
                 {
@@ -65,31 +65,7 @@ static class PackageBrowserGui
                 }
                 else
                 {
-                    ImGui.PushFont(ImGui.GetFont()); // no bold font available — headline via color instead
-                    ImGui.TextColored(new Vector4(0.55f, 0.75f, 1f, 1f), sel.Name);
-                    ImGui.PopFont();
-
-                    if (sel.Status == "planned")
-                        ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.2f, 1f), "Planned - not yet available");
-                    else
-                        ImGui.TextColored(new Vector4(0.5f, 0.85f, 0.5f, 1f), "Available");
-
-                    ImGui.Spacing();
-                    ImGui.TextWrapped(sel.Description);
-                    ImGui.Spacing();
-                    ImGui.Separator();
-                    ImGui.Spacing();
-
-                    if (sel.Usage != null)
-                    {
-                        ImGui.Text("Usage:");
-                        ImGui.SameLine();
-                        var usage = sel.Usage;
-                        ImGui.InputText("##usage", ref usage, 128, ImGuiInputTextFlags.ReadOnly);
-                    }
-                    if (sel.Source != null) ImGui.Text($"Source: {sel.Source}");
-                    if (sel.Docs != null) ImGui.Text($"Docs: {sel.Docs}");
-                    if (sel.Note != null) { ImGui.Spacing(); ImGui.TextWrapped(sel.Note); }
+                    DrawDetail(sel);
                 }
                 ImGui.EndChild();
 
@@ -103,8 +79,68 @@ static class PackageBrowserGui
         }
     }
 
-    private static bool Matches(RegistryEntry e, string query) =>
-        string.IsNullOrWhiteSpace(query) ||
-        e.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-        e.Description.Contains(query, StringComparison.OrdinalIgnoreCase);
+    private static void DrawDetail(RegistryEntry sel)
+    {
+        ImGui.TextColored(new Vector4(0.55f, 0.75f, 1f, 1f), sel.Name);
+
+        if (sel.Status == "planned")
+            ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.2f, 1f), "Planned - not yet available");
+        else
+            ImGui.TextColored(new Vector4(0.5f, 0.85f, 0.5f, 1f), "Available");
+
+        ImGui.Spacing();
+        ImGui.TextWrapped(sel.Description);
+        ImGui.Spacing();
+        ImGui.Separator();
+
+        if (!ImGui.BeginTabBar("##detail_tabs")) return;
+
+        if (ImGui.BeginTabItem("Usage & Docs"))
+        {
+            ImGui.Spacing();
+            if (sel.Usage != null)
+            {
+                ImGui.Text("Usage:");
+                ImGui.SameLine();
+                var usage = sel.Usage;
+                ImGui.InputText("##usage", ref usage, 128, ImGuiInputTextFlags.ReadOnly);
+            }
+            if (sel.Source != null) ImGui.Text($"Source: {sel.Source}");
+            if (sel.Docs != null) ImGui.Text($"Docs: {sel.Docs}");
+            if (sel.Note != null) { ImGui.Spacing(); ImGui.TextWrapped(sel.Note); }
+            if (sel.Usage == null && sel.Source == null && sel.Docs == null && sel.Note == null)
+                ImGui.TextDisabled("Nothing to show yet.");
+            ImGui.EndTabItem();
+        }
+
+        if (ImGui.BeginTabItem("Versions"))
+        {
+            ImGui.Spacing();
+            if (sel.Versions == null || sel.Versions.Count == 0)
+            {
+                ImGui.TextDisabled("No other versions or variants.");
+            }
+            else
+            {
+                foreach (var v in sel.Versions)
+                {
+                    ImGui.TextColored(new Vector4(0.55f, 0.75f, 1f, 1f), v.Name);
+                    ImGui.TextWrapped(v.Description);
+                    if (v.Usage != null)
+                    {
+                        ImGui.Text("Usage:");
+                        ImGui.SameLine();
+                        var vUsage = v.Usage;
+                        ImGui.InputText($"##usage_{v.Name}", ref vUsage, 128, ImGuiInputTextFlags.ReadOnly);
+                    }
+                    ImGui.Spacing();
+                    ImGui.Separator();
+                    ImGui.Spacing();
+                }
+            }
+            ImGui.EndTabItem();
+        }
+
+        ImGui.EndTabBar();
+    }
 }

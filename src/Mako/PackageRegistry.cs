@@ -16,6 +16,18 @@ sealed record RegistryEntry
     [JsonPropertyName("source")]      public string? Source { get; init; }              // e.g. "github:User/Repo"
     [JsonPropertyName("docs")]        public string? Docs { get; init; }                // e.g. "docs/mako3d.md"
     [JsonPropertyName("note")]        public string? Note { get; init; }                // extra context, mainly for "planned" entries
+    [JsonPropertyName("versions")]    public List<RegistryVariant>? Versions { get; init; } // other forms/identities of this same package
+}
+
+/// Another version/identity of a package — e.g. MakoGUI is a variant of
+/// MakoUI (same package, different name for a different use case). Not
+/// separately searchable/browsable as its own top-level entry; discovered
+/// via the parent entry's Versions tab/section.
+sealed record RegistryVariant
+{
+    [JsonPropertyName("name")]        public required string Name { get; init; }
+    [JsonPropertyName("description")] public required string Description { get; init; }
+    [JsonPropertyName("usage")]       public string? Usage { get; init; }
 }
 
 /// Package discovery — "what packages exist and what do they do," backed by
@@ -44,18 +56,28 @@ static class PackageRegistry
         return _cache;
     }
 
-    /// Case-insensitive substring match against name or description.
-    /// Empty/null query returns everything.
+    /// Case-insensitive substring match against name or description — the
+    /// entry's own, or any of its versions/variants (e.g. searching
+    /// "MakoGUI" surfaces the parent MakoUI entry; its Versions tab has
+    /// the rest of the detail).
     public static IEnumerable<RegistryEntry> Search(string? query)
     {
         if (string.IsNullOrWhiteSpace(query)) return All();
         var q = query.Trim();
-        return All().Where(e =>
-            e.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-            e.Description.Contains(q, StringComparison.OrdinalIgnoreCase));
+        return All().Where(e => Matches(e, q));
     }
 
-    /// Exact (case-insensitive) name lookup.
+    private static bool Matches(RegistryEntry e, string q) =>
+        e.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+        e.Description.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+        (e.Versions?.Any(v =>
+            v.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            v.Description.Contains(q, StringComparison.OrdinalIgnoreCase)) ?? false);
+
+    /// Exact (case-insensitive) name lookup — matches an entry's own name,
+    /// or the name of one of its versions/variants (resolves to the parent).
     public static RegistryEntry? Find(string name) =>
-        All().FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+        All().FirstOrDefault(e =>
+            string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase) ||
+            (e.Versions?.Any(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase)) ?? false));
 }

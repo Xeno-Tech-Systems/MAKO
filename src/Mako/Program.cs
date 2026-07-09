@@ -480,6 +480,18 @@ static void PrintPackageInfo(RegistryEntry e)
     if (e.Source != null) Console.WriteLine($"Source: {e.Source}");
     if (e.Docs != null) Console.WriteLine($"Docs:   {e.Docs}");
     if (e.Note != null) Console.WriteLine($"Note:   {e.Note}");
+
+    if (e.Versions != null && e.Versions.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Versions:");
+        foreach (var v in e.Versions)
+        {
+            Console.WriteLine($"  {v.Name}");
+            Console.WriteLine($"    {v.Description}");
+            if (v.Usage != null) Console.WriteLine($"    Usage: {v.Usage}");
+        }
+    }
 }
 
 static void PrintHelp()

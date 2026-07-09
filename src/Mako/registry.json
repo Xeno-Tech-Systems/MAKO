@@ -5,15 +5,14 @@
     "status": "available",
     "description": "Immediate-mode desktop UI (Dear ImGui) - widgets, windows, menus, tables. Works as an in-game overlay or a standalone app window.",
     "usage": "using MakoUI;",
-    "docs": "docs/makoui.md"
-  },
-  {
-    "name": "MakoGUI",
-    "kind": "native",
-    "status": "available",
-    "description": "Build a plain standalone desktop app with MakoUI - no game loop, no Mako2D/Mako3D window required. Same package as MakoUI, just the name for this use case: call MakoUI.init(...) directly instead of MakoUI.attach().",
-    "usage": "using MakoUI;",
-    "docs": "docs/makoui.md"
+    "docs": "docs/makoui.md",
+    "versions": [
+      {
+        "name": "MakoGUI",
+        "description": "The same package, for building a plain standalone desktop app - no game loop, no Mako2D/Mako3D window required. Call MakoUI.init(...) directly instead of MakoUI.attach().",
+        "usage": "using MakoUI;"
+      }
+    ]
   },
   {
     "name": "Mako2D",

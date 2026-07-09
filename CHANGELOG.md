@@ -8,6 +8,18 @@ All notable changes to MAKO are recorded here.
 
 ### Added
 
+**Package detail panel now has tabs.** The registry gained a `versions` field —
+other identities of the same package (MakoGUI is now listed as a version of
+MakoUI rather than its own top-level registry entry, so it no longer clutters
+search results as a separate match). The detail panel splits into "Usage &
+Docs" and "Versions" tabs; searching or looking up a variant's name (e.g.
+`mko info MakoGUI`) resolves to its parent entry. Also fixed: the package
+browser's window filled a fixed 760x460 regardless of what the real OS
+window came out as (compositor/DPI scaling), leaving dead space below the
+panels — now sizes off the actual display size every frame. Em-dashes in
+registry text rendered as tofu in ImGui's default font; swapped for plain
+hyphens.
+
 **Package discovery: `mko search` / `mko info`.** MAKO could already install
 and use packages (`mko get`, `using X from "github:...";`) but had no way to
 ask "what's out there?" first — you needed the exact name already. Both new
