@@ -26,8 +26,15 @@ static class PackageBrowserGui
             {
                 ui.Begin();
 
+                // Fill whatever the real window size turns out to be each
+                // frame, rather than a hardcoded size — the actual window
+                // (subject to the OS/compositor/DPI scaling) doesn't
+                // necessarily match the size passed to MakoUI.Init(),
+                // and a mismatch there is exactly what leaves empty space
+                // below a fixed-size panel.
+                var displaySize = ImGui.GetIO().DisplaySize;
                 ImGui.SetNextWindowPos(Vector2.Zero);
-                ImGui.SetNextWindowSize(new Vector2(760, 460));
+                ImGui.SetNextWindowSize(displaySize);
                 ImGui.Begin("##browser", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove);
 
                 // ── Left: search + results ──────────────────────────────
@@ -63,7 +70,7 @@ static class PackageBrowserGui
                     ImGui.PopFont();
 
                     if (sel.Status == "planned")
-                        ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.2f, 1f), "Planned — not yet available");
+                        ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.2f, 1f), "Planned - not yet available");
                     else
                         ImGui.TextColored(new Vector4(0.5f, 0.85f, 0.5f, 1f), "Available");
 

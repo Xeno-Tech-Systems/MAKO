@@ -3,7 +3,7 @@
     "name": "MakoUI",
     "kind": "native",
     "status": "available",
-    "description": "Immediate-mode desktop UI (Dear ImGui) — widgets, windows, menus, tables. Works as an in-game overlay or a standalone app window.",
+    "description": "Immediate-mode desktop UI (Dear ImGui) - widgets, windows, menus, tables. Works as an in-game overlay or a standalone app window.",
     "usage": "using MakoUI;",
     "docs": "docs/makoui.md"
   },
@@ -11,7 +11,7 @@
     "name": "MakoGUI",
     "kind": "native",
     "status": "available",
-    "description": "Build a plain standalone desktop app with MakoUI — no game loop, no Mako2D/Mako3D window required. Same package as MakoUI, just the name for this use case: call MakoUI.init(...) directly instead of MakoUI.attach().",
+    "description": "Build a plain standalone desktop app with MakoUI - no game loop, no Mako2D/Mako3D window required. Same package as MakoUI, just the name for this use case: call MakoUI.init(...) directly instead of MakoUI.attach().",
     "usage": "using MakoUI;",
     "docs": "docs/makoui.md"
   },
@@ -19,7 +19,7 @@
     "name": "Mako2D",
     "kind": "native",
     "status": "available",
-    "description": "2D rendering — sprites, shapes, text, Camera2D, keyboard/mouse input.",
+    "description": "2D rendering - sprites, shapes, text, Camera2D, keyboard/mouse input.",
     "usage": "using Mako2D;",
     "docs": "docs/mako2d.md"
   },
@@ -27,7 +27,7 @@
     "name": "Mako3D",
     "kind": "native",
     "status": "available",
-    "description": "3D rendering — camera, primitives, models, a scene/object system, and Blender-style mesh editing.",
+    "description": "3D rendering - camera, primitives, models, a scene/object system, and Blender-style mesh editing.",
     "usage": "using Mako3D;",
     "docs": "docs/mako3d.md"
   },
@@ -43,7 +43,7 @@
     "name": "Audio",
     "kind": "native",
     "status": "available",
-    "description": "Sound playback, music streaming, and synthesized tones/notes/melodies — no audio files required.",
+    "description": "Sound playback, music streaming, and synthesized tones/notes/melodies - no audio files required.",
     "usage": "using Audio;",
     "docs": "docs/audio.md"
   },
@@ -59,7 +59,7 @@
     "name": "MakoVR",
     "kind": "native",
     "status": "planned",
-    "description": "VR headset support — planned, not implemented yet.",
+    "description": "VR headset support - planned, not implemented yet.",
     "note": "No VR runtime is wired up. Tracked as a future package; there's nothing to install or use yet."
   }
 ]
