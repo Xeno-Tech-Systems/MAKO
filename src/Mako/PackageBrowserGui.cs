@@ -11,11 +11,20 @@ namespace Mako;
 /// list/selection widgets this needs.
 static class PackageBrowserGui
 {
+    private const string GithubLookupSentinel = "__github_lookup__";
+
     public static void Run(string? initialQuery, string? selected = null)
     {
         var entries = PackageRegistry.All();
         string query = initialQuery ?? "";
         string current = selected ?? PackageRegistry.Search(query).FirstOrDefault()?.Name ?? "";
+
+        // Live GitHub mako.json lookup, triggered by clicking the synthetic
+        // "Look up ... (GitHub)" entry that appears whenever the query looks
+        // like "github:User/Repo" — set once fetched, kept around so the
+        // detail panel can keep showing it even after the query changes.
+        RegistryEntry? remoteEntry = null;
+        string? remoteError = null;
 
         var ui = new MakoUI();
         ui.Init("MAKO Package Browser", 760, 460);
@@ -44,13 +53,37 @@ static class PackageBrowserGui
 
                 var matches = PackageRegistry.Search(query).ToList();
                 ImGui.Spacing();
+
+                bool looksLikeGithub = query.StartsWith("github:", StringComparison.OrdinalIgnoreCase)
+                    && GithubPackageLookup.TryParseSource(query, out _, out _);
+                if (looksLikeGithub)
+                {
+                    var lookupLabel = $"Look up {query} (GitHub) ->";
+                    if (ImGui.Selectable(lookupLabel, current == GithubLookupSentinel))
+                    {
+                        try
+                        {
+                            remoteEntry = GithubPackageLookup.Fetch(query);
+                            remoteError = null;
+                            current = remoteEntry.Name;
+                        }
+                        catch (MakoError ex)
+                        {
+                            remoteEntry = null;
+                            remoteError = ex.RawMessage;
+                            current = GithubLookupSentinel;
+                        }
+                    }
+                    ImGui.Separator();
+                }
+
                 foreach (var e in matches)
                 {
                     var label = e.Status == "planned" ? $"{e.Name} (planned)" : e.Name;
                     if (ImGui.Selectable(label, e.Name == current))
                         current = e.Name;
                 }
-                if (matches.Count == 0)
+                if (matches.Count == 0 && !looksLikeGithub)
                     ImGui.TextDisabled("No matches.");
                 ImGui.EndChild();
 
@@ -58,14 +91,23 @@ static class PackageBrowserGui
 
                 // ── Right: detail panel ─────────────────────────────────
                 ImGui.BeginChild("##detail", new Vector2(0, 0), ImGuiChildFlags.Border);
-                var sel = entries.FirstOrDefault(e => e.Name == current);
-                if (sel == null)
+                var sel = remoteEntry != null && remoteEntry.Name == current
+                    ? remoteEntry
+                    : entries.FirstOrDefault(e => e.Name == current);
+
+                if (sel != null)
                 {
-                    ImGui.TextDisabled("Select a package on the left.");
+                    DrawDetail(sel);
+                }
+                else if (current == GithubLookupSentinel && remoteError != null)
+                {
+                    ImGui.TextColored(new Vector4(0.9f, 0.4f, 0.4f, 1f), "Couldn't fetch that package:");
+                    ImGui.Spacing();
+                    ImGui.TextWrapped(remoteError);
                 }
                 else
                 {
-                    DrawDetail(sel);
+                    ImGui.TextDisabled("Select a package on the left.");
                 }
                 ImGui.EndChild();
 

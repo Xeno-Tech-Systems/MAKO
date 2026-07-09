@@ -19,6 +19,13 @@ won't show up in search/info. **MakoVR** moved from a standalone registry
 entry to a version of **Mako3D** (VR is scoped as a 3D-rendering extension,
 not its own package) — same "planned, not implemented" status as before.
 
+The GitHub lookup also works from inside an already-open `mko search`
+window now, not just as a CLI argument (`mko search github:...`) before it
+opens — typing `github:User/Repo` into the live search box surfaces a "Look
+up ... (GitHub)" entry; selecting it fetches and shows the result inline,
+with fetch errors (no manifest, repo not found) shown in the detail panel
+instead of silently doing nothing.
+
 **Package detail panel now has tabs.** The registry gained a `versions` field —
 other identities of the same package (MakoGUI is now listed as a version of
 MakoUI rather than its own top-level registry entry, so it no longer clutters
