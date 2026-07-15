@@ -59,6 +59,13 @@ if (args[0] == "run")
     {
         var tokens  = new Lexer(source).Tokenize();
         var program = new Parser(tokens).Parse();
+        var typeIssues = SystemsTypeChecker.Check(program);
+        if (typeIssues.Count > 0)
+        {
+            foreach (var issue in typeIssues.OrderBy(i => i.Line))
+                Console.Error.WriteLine($"{path}:{issue.Line}: type error: {issue.Message}");
+            return 1;
+        }
         var baseDir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
         var interp  = new Interpreter { ScriptArgs = args.Skip(2).ToList() };
         interp.Execute(program, baseDir);
@@ -142,8 +149,13 @@ if (args[0] == "check")
     try
     {
         var tokens  = new Lexer(checkSource).Tokenize();
-        var program = new Parser(tokens).Parse();
+        var program = args.Contains("--kernel")
+            ? NativeModuleLoader.Load(checkPath)
+            : new Parser(tokens).Parse();
         issues = Checker.Check(program);
+        if (args.Contains("--kernel"))
+            issues.AddRange(KernelProfileChecker.Check(program,
+                SystemsTypeChecker.Analyze(program)));
     }
     catch (MakoError ex) { ReportError(ex, checkSource); return 1; }
 
@@ -157,6 +169,172 @@ if (args[0] == "check")
         Console.WriteLine($"{checkPath}:{issue.Line}: {issue.Message}");
     Console.WriteLine($"{issues.Count} issue{(issues.Count == 1 ? "" : "s")} found");
     return 1;
+}
+
+if (args[0] == "ir")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Usage: mko ir <file.mko>");
+        return 1;
+    }
+
+    string? irPath = ResolvePath(args[1]);
+    if (irPath == null)
+    {
+        Console.Error.WriteLine($"mko: file not found: {args[1]}");
+        return 1;
+    }
+
+    string irSource;
+    try { irSource = File.ReadAllText(irPath); }
+    catch (Exception ex) { Console.Error.WriteLine($"mko: could not read: {ex.Message}"); return 1; }
+    if (irSource.StartsWith("#!"))
+        irSource = irSource[(irSource.IndexOf('\n') + 1)..];
+
+    try
+    {
+        var program = new Parser(new Lexer(irSource).Tokenize()).Parse();
+        var analysis = SystemsTypeChecker.Analyze(program);
+        if (analysis.Issues.Count > 0)
+        {
+            foreach (var issue in analysis.Issues.OrderBy(i => i.Line))
+                Console.Error.WriteLine($"{irPath}:{issue.Line}: type error: {issue.Message}");
+            return 1;
+        }
+        Console.Write(TypedHirFormatter.Format(TypedHirLowerer.Lower(program, analysis)));
+        return 0;
+    }
+    catch (MakoError ex) { ReportError(ex, irSource); return 1; }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"mko ir: internal error: {ex.Message}");
+        return 1;
+    }
+}
+
+if (args[0] == "mir")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Usage: mko mir <file.mko> [--opt]");
+        return 1;
+    }
+
+    string? mirPath = ResolvePath(args[1]);
+    if (mirPath == null)
+    {
+        Console.Error.WriteLine($"mko: file not found: {args[1]}");
+        return 1;
+    }
+
+    string mirSource;
+    try { mirSource = File.ReadAllText(mirPath); }
+    catch (Exception ex) { Console.Error.WriteLine($"mko: could not read: {ex.Message}"); return 1; }
+    if (mirSource.StartsWith("#!"))
+        mirSource = mirSource[(mirSource.IndexOf('\n') + 1)..];
+
+    try
+    {
+        var program = new Parser(new Lexer(mirSource).Tokenize()).Parse();
+        var analysis = SystemsTypeChecker.Analyze(program);
+        if (analysis.Issues.Count > 0)
+        {
+            foreach (var issue in analysis.Issues.OrderBy(i => i.Line))
+                Console.Error.WriteLine($"{mirPath}:{issue.Line}: type error: {issue.Message}");
+            return 1;
+        }
+        var hir = TypedHirLowerer.Lower(program, analysis);
+        var mir = MirLowerer.Lower(hir);
+        var validation = MirValidator.Validate(mir);
+        if (validation.Count > 0)
+        {
+            foreach (var issue in validation)
+                Console.Error.WriteLine($"mko mir: validation error: {issue}");
+            return 1;
+        }
+        if (args.Contains("--opt"))
+        {
+            mir = MirOptimizer.Optimize(mir).Program;
+            validation = MirValidator.Validate(mir);
+            if (validation.Count > 0)
+            {
+                foreach (var issue in validation)
+                    Console.Error.WriteLine($"mko mir: optimized MIR error: {issue}");
+                return 1;
+            }
+        }
+        Console.Write(MirFormatter.Format(mir));
+        return 0;
+    }
+    catch (MakoError ex) { ReportError(ex, mirSource); return 1; }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"mko mir: internal error: {ex.Message}");
+        return 1;
+    }
+}
+
+if (args[0] == "native")
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Usage: mko native <file.mko> -o <file.S> [--kernel]");
+        return 1;
+    }
+
+    string? nativePath = ResolvePath(args[1]);
+    var outputIndex = Array.IndexOf(args, "-o");
+    if (nativePath == null)
+    {
+        Console.Error.WriteLine($"mko: file not found: {args[1]}");
+        return 1;
+    }
+    if (outputIndex < 0 || outputIndex + 1 >= args.Length)
+    {
+        Console.Error.WriteLine("mko native: an output path is required with -o");
+        return 1;
+    }
+
+    string nativeSource;
+    try { nativeSource = File.ReadAllText(nativePath); }
+    catch (Exception ex) { Console.Error.WriteLine($"mko: could not read: {ex.Message}"); return 1; }
+    if (nativeSource.StartsWith("#!"))
+        nativeSource = nativeSource[(nativeSource.IndexOf('\n') + 1)..];
+
+    try
+    {
+        var program = NativeModuleLoader.Load(nativePath);
+        var analysis = SystemsTypeChecker.Analyze(program);
+        var issues = new List<CheckIssue>(analysis.Issues);
+        if (args.Contains("--kernel"))
+            issues.AddRange(KernelProfileChecker.Check(program, analysis));
+        if (issues.Count > 0)
+        {
+            foreach (var issue in issues.OrderBy(i => i.Line))
+                Console.Error.WriteLine($"{nativePath}:{issue.Line}: {issue.Message}");
+            return 1;
+        }
+
+        var mir = MirOptimizer.Optimize(MirLowerer.Lower(
+            TypedHirLowerer.Lower(program, analysis))).Program;
+        var validation = MirValidator.Validate(mir);
+        if (validation.Count > 0)
+        {
+            foreach (var issue in validation)
+                Console.Error.WriteLine($"mko native: MIR validation error: {issue}");
+            return 1;
+        }
+        File.WriteAllText(args[outputIndex + 1], X64AssemblyEmitter.Emit(mir));
+        Console.WriteLine($"emitted x86_64 assembly: {args[outputIndex + 1]}");
+        return 0;
+    }
+    catch (MakoError ex) { ReportError(ex, nativeSource); return 1; }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"mko native: {ex.Message}");
+        return 1;
+    }
 }
 
 if (args[0] == "repl")
@@ -194,6 +372,22 @@ if (args[0] == "test")
         {
             var tokens  = new Lexer(src).Tokenize();
             var program = new Parser(tokens).Parse();
+            var analysis = SystemsTypeChecker.Analyze(program);
+            if (analysis.Issues.Count > 0)
+                throw new MakoError($"static analysis failed: {analysis.Issues[0].Message}",
+                    analysis.Issues[0].Line);
+            var loweredHir = TypedHirLowerer.Lower(program, analysis);
+            var originalHir = TypedHirFormatter.Format(loweredHir);
+            var loweredMir = MirLowerer.Lower(loweredHir);
+            var mirIssues = MirValidator.Validate(loweredMir);
+            if (mirIssues.Count > 0)
+                throw new MakoError($"MIR validation failed: {mirIssues[0]}");
+            var originalMir = MirFormatter.Format(loweredMir);
+            var optimizedMirProgram = MirOptimizer.Optimize(loweredMir).Program;
+            mirIssues = MirValidator.Validate(optimizedMirProgram);
+            if (mirIssues.Count > 0)
+                throw new MakoError($"optimized MIR validation failed: {mirIssues[0]}");
+            var originalOptimizedMir = MirFormatter.Format(optimizedMirProgram);
             var baseDir = Path.GetDirectoryName(Path.GetFullPath(file)) ?? ".";
             new Interpreter().Execute(program, baseDir);
 
@@ -203,6 +397,27 @@ if (args[0] == "test")
             var formatted     = Formatter.Format(src);
             var formattedToks = new Lexer(formatted).Tokenize();
             var formattedProg = new Parser(formattedToks).Parse();
+            var formattedAnalysis = SystemsTypeChecker.Analyze(formattedProg);
+            if (formattedAnalysis.Issues.Count > 0)
+                throw new MakoError($"formatted source failed static analysis: {formattedAnalysis.Issues[0].Message}",
+                    formattedAnalysis.Issues[0].Line);
+            var formattedLoweredHir = TypedHirLowerer.Lower(formattedProg, formattedAnalysis);
+            var formattedHir = TypedHirFormatter.Format(formattedLoweredHir);
+            if (originalHir != formattedHir)
+                throw new MakoError("formatter changed the program's typed HIR");
+            var formattedLoweredMir = MirLowerer.Lower(formattedLoweredHir);
+            mirIssues = MirValidator.Validate(formattedLoweredMir);
+            if (mirIssues.Count > 0)
+                throw new MakoError($"formatted MIR validation failed: {mirIssues[0]}");
+            var formattedMir = MirFormatter.Format(formattedLoweredMir);
+            if (originalMir != formattedMir)
+                throw new MakoError("formatter changed the program's basic-block MIR");
+            var formattedOptimizedMir = MirOptimizer.Optimize(formattedLoweredMir).Program;
+            mirIssues = MirValidator.Validate(formattedOptimizedMir);
+            if (mirIssues.Count > 0)
+                throw new MakoError($"formatted optimized MIR validation failed: {mirIssues[0]}");
+            if (originalOptimizedMir != MirFormatter.Format(formattedOptimizedMir))
+                throw new MakoError("formatter changed the program's optimized MIR");
             new Interpreter().Execute(formattedProg, baseDir);
 
             Console.WriteLine($"PASS  {rel}");
@@ -700,7 +915,12 @@ static void PrintHelp()
       mko run <file.mko>            Run a MAKO script
       mko fmt <file.mko>            Format a MAKO file in-place
       mko fmt <file.mko> --check   Check if a file is formatted
-      mko check <file.mko>          Lint a file (unused vars, unreachable code, bad type hints)
+      mko check <file.mko>          Check static types and lint a file
+        --kernel                    Enforce the freestanding kernel-safe subset
+      mko ir <file.mko>             Print typed high-level compiler IR
+      mko mir <file.mko> [--opt]    Print validated basic-block IR; optionally optimize
+      mko native <file.mko> -o <file.S> [--kernel]
+                                     Emit freestanding System V x86_64 assembly
       mko repl                      Start interactive REPL
       mko test [dir]                 Run *.mko files under tests/ (or [dir])
       mko foundry [project]          Open the MakoUI game builder

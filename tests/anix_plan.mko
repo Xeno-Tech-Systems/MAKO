@@ -1,0 +1,16 @@
+using ANIX;
+
+main() {
+    ANIX.set("hostname", "everest-mako");
+    ANIX.enable("bluetooth");
+    ANIX.package("firefox");
+    ANIX.remove_package("nano");
+
+    plan = ANIX.plan();
+    assert(plan["planVersion"] == 1, "ANIX emits plan version 1");
+    assert(plan["language"] == "mako", "ANIX identifies the MAKO frontend");
+    assert(len(plan["operations"]) == 4, "ANIX keeps every operation");
+    assert(plan["operations"][0]["key"] == "hostname", "ANIX set operation keeps its key");
+    assert(plan["operations"][2]["op"] == "package.add", "ANIX package creates a package.add operation");
+    print "MAKO ANIX plan tests pass!";
+}

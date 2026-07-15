@@ -36,7 +36,7 @@ static class PackageManager
 
     // Native packages are built into the interpreter — no files to clone.
     public static readonly HashSet<string> NativePackages =
-        new(StringComparer.OrdinalIgnoreCase) { "MakoUI", "IMGUI", "MakoRay", "Mako2D", "Mako3D", "Physics2D", "Physics3D", "JoltPhysics", "PhysX", "BulletPhysics", "Box2D", "Inputs", "Audio", "Net", "System" };
+        new(StringComparer.OrdinalIgnoreCase) { "MakoUI", "IMGUI", "MakoRay", "Mako2D", "Mako3D", "Models", "Players", "Controllers", "Save", "ANIX", "Physics2D", "Physics3D", "JoltPhysics", "PhysX", "BulletPhysics", "Box2D", "Inputs", "Audio", "Net", "Room", "System", "Font" };
 
     // Public registry: name → clone source (URL, optionally with an
     // unresolved "@ref" suffix still attached — ResolveUrl/ParseRef split

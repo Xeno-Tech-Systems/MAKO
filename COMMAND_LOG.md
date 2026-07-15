@@ -5,6 +5,87 @@ records the goal, user-visible changes, important build/test commands, and their
 results. Routine inspection commands are intentionally omitted so the log stays
 useful.
 
+## 2026-07-13 — 3D bike simulator
+
+Goal: build a playable MAKO v1.1 example that proves the new game packages can
+work together without making the script difficult to read.
+
+Changes:
+
+- Added `examples/bike_simulator.mko`, a north-and-back 3D time trial.
+- Added one input path for keyboard and controllers through `Players`.
+- Added speed-sensitive steering, visible leaning, braking, reversing, skids,
+  grass resistance, suspension movement, cone collisions, and course limits.
+- Added a bike-follow camera, responsive HUD, generated sounds, lap timing,
+  persistent best laps, pause, and reset controls.
+- Added the simulator to the README and v0.1.1 changelog.
+
+Verification:
+
+```bash
+mko fmt examples/bike_simulator.mko --check
+timeout 8s mko run examples/bike_simulator.mko
+```
+
+Result: formatter check passed and the graphical game loop ran for eight
+seconds without a MAKO or native runtime error (stopped by the timeout).
+
+## 2026-07-13 — Bike balance physics
+
+Goal: make riding require active balance instead of displaying an automatic
+lean animation.
+
+Changes:
+
+- Replaced target-based leaning with an unstable roll angle, angular velocity,
+  gravity, damping, counter-steering force, and speed-based stability.
+- Made grass, hard braking, and cone impacts disturb the bicycle's balance.
+- Added a 56-degree fall threshold, grounded bike/rider pose, fallen state,
+  reset recovery, and a live balance percentage.
+- Kept one simple A/D or left-stick control for both steering and catching the
+  bicycle, following MAKO's readability rule.
+
+Verification:
+
+```bash
+mko fmt examples/bike_simulator.mko --check
+timeout 8s mko run examples/bike_simulator.mko
+mko test tests
+```
+
+Result: the formatter and runtime smoke test passed; the balance state and HUD
+were inspected in the running game.
+
+## 2026-07-13 — Block World building game
+
+Goal: create a LEGO-like MAKO game with the approachable building and movement
+loop of a Roblox sandbox.
+
+Changes:
+
+- Added `examples/block_world.mko` with third-person movement, jumping, a chase
+  camera, a blocky avatar, and keyboard/controller controls.
+- Added grid-snapped place and remove tools driven by a camera raycast and the
+  selected face normal.
+- Made every brick a real Physics3D static collider and added safe player
+  respawning when a platform is removed.
+- Added six toy-brick colors, studs, a starter baseplate, stairs, an arch,
+  floating platforms, build previews, selection outlines, and generated sound.
+- Added automatic local world saving, a 500-brick limit, and guarded save
+  clearing without storing temporary physics body handles.
+
+Verification:
+
+```bash
+mko fmt examples/block_world.mko --check
+timeout 10s mko run examples/block_world.mko
+mko test tests
+```
+
+Result: the formatter and ten-second graphical runtime test passed. The starter
+world, character, selection preview, brick studs, course geometry, and HUD were
+visually inspected in the running game.
+
 ## 2026-07-10 — Physics2D foundation
 
 Goal: begin a rendering-independent 2D rigid-body engine before attempting 3D

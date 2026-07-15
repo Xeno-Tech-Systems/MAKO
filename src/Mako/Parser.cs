@@ -5,9 +5,9 @@ namespace Mako;
 ///
 ///   program       = script_decl? (fn_decl | main_decl)* EOF
 ///   script_decl   = "script" STRING ";"
-///   fn_decl       = "fn" IDENT "(" param_list ")" block
+///   fn_decl       = "fn" IDENT "(" param_list ")" ("->" type)? block
 ///   main_decl     = "main" "(" ")" block
-///   param_list    = (IDENT ("," IDENT)*)?
+///   param_list    = (IDENT (":" type)? ("," IDENT (":" type)?)*)?
 ///   statement     = print_stmt | printnl_stmt | assign_stmt | index_assign_stmt
 ///                 | if_stmt | while_stmt | for_stmt
 ///                 | break_stmt | continue_stmt | return_stmt
@@ -113,9 +113,25 @@ class Parser
         while (!Check(TokenType.Eof))
         {
             if (Check(TokenType.Fn))
-                fns.Add(ParseFnDecl());
+            {
+                var fn = ParseFnDecl();
+                var prior = fns.FirstOrDefault(existing => existing.Name == fn.Name);
+                if (prior != null)
+                    throw new MakoError(
+                        $"duplicate function '{fn.Name}' (the first declaration is on line {prior.Line})",
+                        fn.Line, 1, fn.Name.Length);
+                fns.Add(fn);
+            }
             else if (Check(TokenType.Struct))
-                structs.Add(ParseStructDecl());
+            {
+                var decl = ParseStructDecl();
+                var prior = structs.FirstOrDefault(existing => existing.Name == decl.Name);
+                if (prior != null)
+                    throw new MakoError(
+                        $"duplicate struct '{decl.Name}' (the first declaration is on line {prior.Line})",
+                        decl.Line, 1, decl.Name.Length);
+                structs.Add(decl);
+            }
             else if (Check(TokenType.Main))
             {
                 if (mainTok is { } first)
@@ -169,9 +185,19 @@ class Parser
         var name = Expect(TokenType.Identifier, "expected a struct name after 'struct'").Value;
         var open = Expect(TokenType.LBrace, $"missing '{{' after struct name '{name}'");
         var fields = new List<string>();
+        var fieldTypes = new Dictionary<string, string>(StringComparer.Ordinal);
         while (!Check(TokenType.RBrace) && !Check(TokenType.Eof))
         {
-            fields.Add(Expect(TokenType.Identifier, "expected a field name").Value);
+            var field = Expect(TokenType.Identifier, "expected a field name").Value;
+            if (fields.Contains(field))
+                throw new MakoError($"duplicate field '{field}' in struct '{name}'",
+                    Previous().Line, Previous().Col, field.Length);
+            fields.Add(field);
+            if (Check(TokenType.Colon))
+            {
+                Advance();
+                fieldTypes[field] = ParseTypeName($"expected a type after field '{field}:'");
+            }
             if (Check(TokenType.Comma)) { Advance(); continue; }
             if (!Check(TokenType.RBrace) && !Check(TokenType.Eof))
             {
@@ -182,7 +208,7 @@ class Parser
             }
         }
         ExpectClosing(TokenType.RBrace, "}", open);
-        return new StructDecl(name, fields) { Line = line };
+        return new StructDecl(name, fields) { Line = line, FieldTypes = fieldTypes };
     }
 
     private FnDecl ParseFnDecl()
@@ -203,9 +229,19 @@ class Parser
 
         var open = Expect(TokenType.LParen, $"missing '(' after function name '{name}'");
         var parms = new List<string>();
+        var paramTypes = new Dictionary<string, string>(StringComparer.Ordinal);
         while (!Check(TokenType.RParen) && !Check(TokenType.Eof))
         {
-            parms.Add(Expect(TokenType.Identifier, "expected a parameter name").Value);
+            var param = Expect(TokenType.Identifier, "expected a parameter name").Value;
+            if (parms.Contains(param))
+                throw new MakoError($"duplicate parameter '{param}' in function '{name}'",
+                    Previous().Line, Previous().Col, param.Length);
+            parms.Add(param);
+            if (Check(TokenType.Colon))
+            {
+                Advance();
+                paramTypes[param] = ParseTypeName($"expected a type after parameter '{param}:'");
+            }
             if (Check(TokenType.Comma)) { Advance(); continue; }
             if (!Check(TokenType.RParen) && !Check(TokenType.Eof))
             {
@@ -216,7 +252,51 @@ class Parser
             }
         }
         ExpectClosing(TokenType.RParen, ")", open);
-        return new FnDecl(name, parms, ParseBlock()) { Line = fnLine };
+        string? returnType = null;
+        if (Check(TokenType.ThinArrow))
+        {
+            Advance();
+            returnType = ParseTypeName($"expected a return type after '->' in function '{name}'");
+        }
+        return new FnDecl(name, parms, ParseBlock())
+        {
+            Line = fnLine,
+            ParamTypes = paramTypes,
+            ReturnType = returnType,
+        };
+    }
+
+    private string ParseTypeName(string message)
+    {
+        // Most type names are ordinary identifiers. `none` and `fn` already
+        // have keyword tokens in expression grammar, but remain useful type
+        // names (`-> none`, `callback: fn`).
+        if (!Check(TokenType.Identifier) && !Check(TokenType.None) && !Check(TokenType.Fn))
+            return Expect(TokenType.Identifier, message).Value;
+
+        var name = Advance().Value;
+        if (!Check(TokenType.Lt)) return name;
+
+        var open = Advance(); // <
+        var args = new List<string>();
+        while (!Check(TokenType.Gt) && !Check(TokenType.Eof))
+        {
+            args.Add(ParseTypeName($"expected a type argument inside '{name}<...>'"));
+            if (Check(TokenType.Comma))
+            {
+                Advance();
+                continue;
+            }
+            if (!Check(TokenType.Gt))
+                throw new MakoError(
+                    $"expected ',' or '>' after type argument (got {DescribeToken(Current())})",
+                    Current().Line, Current().Col, Math.Max(1, Current().Value.Length));
+        }
+        if (args.Count == 0)
+            throw new MakoError($"generic type '{name}' needs at least one type argument",
+                open.Line, open.Col, 1);
+        ExpectClosing(TokenType.Gt, ">", open);
+        return $"{name}<{string.Join(", ", args)}>";
     }
 
     // ── Statements ────────────────────────────────────────────────────────────
@@ -355,7 +435,7 @@ class Parser
         if (Check(TokenType.Colon))
         {
             Advance(); // :
-            typeHint = Expect(TokenType.Identifier, $"expected a type name after '{name}:'").Value;
+            typeHint = ParseTypeName($"expected a type name after '{name}:'");
         }
 
         // Compound or plain assignment (bare "name = expr;", no field/index)

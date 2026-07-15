@@ -7,7 +7,10 @@
 
 ## Overview
 
-MAKO is a dynamically-typed, imperative scripting language. Programs are easy to read, easy to type, and easy to remember. MAKO uses C-style braces `{}`, requires no boilerplate, and runs with a single command.
+MAKO is an imperative language with dynamic-by-default scripting and an opt-in
+static systems subset. Programs are easy to read, easy to type, and easy to
+remember. MAKO uses C-style braces `{}`, requires no boilerplate, and runs with
+a single command.
 
 ---
 
@@ -62,6 +65,18 @@ nothing = none;
 Names can contain letters, digits, and `_`, but must start with a letter or `_`.  
 Variables can be reassigned and can change type freely.
 
+Add an annotation when a value needs a stable, statically checked type:
+
+```mako
+port: u16 = 8080;
+port = 9000;       # checked against u16
+```
+
+`mko run` checks annotated code before executing it, and `mko check file.mko`
+can be used as a standalone build or CI gate. See
+[Typed and systems MAKO](systems-language.md) for fixed-width types, typed
+functions, typed structs, and the current native-compilation roadmap.
+
 ### Constants
 
 Use `const` for values that must never change:
@@ -87,6 +102,12 @@ Attempting to reassign a `const` is a runtime error.
 | Dict    | `{"hp": 100}`       | `"dict"`            | String-keyed map. See [Dicts](#dicts).       |
 | Fn      | `fn(x) => x * 2`    | `"fn"`              | A lambda value. See [Lambdas](#lambdas).     |
 | None    | `none`              | `"none"`            | Represents "no value".                       |
+
+Systems annotations additionally accept `i8`/`u8` through `i64`/`u64`,
+`isize`, `usize`, `f32`, `f64`, `dynamic`, and user-defined struct names. The
+collection forms `list<T>` and `dict<K, V>` may be nested. The current
+interpreter still reports numeric values as `"number"`; fixed-width runtime
+layout belongs to the native compiler track.
 
 ---
 
@@ -335,6 +356,17 @@ fn add(a, b) {
 
 result = add(3, 4);   // 7
 ```
+
+Parameters and return values can opt into static checking:
+
+```mako
+fn add_checked(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+```
+
+Typed calls, return expressions, and missing return paths are rejected before
+execution. Untyped functions keep their existing dynamic behavior.
 
 Functions can call themselves recursively:
 

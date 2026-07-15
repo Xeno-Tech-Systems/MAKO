@@ -368,6 +368,38 @@ sealed class MakoUI : IDisposable
     public bool WantsMouse()                  => ImGui.GetIO().WantCaptureMouse;
     public bool WantsKeyboard()               => ImGui.GetIO().WantCaptureKeyboard;
 
+    // ── Fonts (embedded/Mako3D+Mako2D mode only) ────────────────────────────
+
+    private void RequireEmbeddedFonts(string fn)
+    {
+        if (!_embedded || _rlCtrl == null)
+            throw new MakoError($"{fn}() is only supported when MakoUI is attached to a Mako3D/Mako2D window (MakoUI.attach())");
+    }
+
+    public void LoadFont(string name, string path, int defaultSize)
+    {
+        RequireEmbeddedFonts("Font.load");
+        _rlCtrl!.LoadFont(name, path, defaultSize);
+    }
+
+    public void PushFont(string name, int size)
+    {
+        RequireEmbeddedFonts("MakoUI.push_font");
+        _rlCtrl!.PushFont(name, size);
+    }
+
+    public void PopFont()
+    {
+        RequireEmbeddedFonts("MakoUI.pop_font");
+        _rlCtrl!.PopFont();
+    }
+
+    public void SetDefaultFontSize(float size)
+    {
+        RequireEmbeddedFonts("MakoUI.set_default_font_size");
+        _rlCtrl!.SetDefaultFontSize(size);
+    }
+
     /// A wheel-style color picker (hue ring + saturation/value square).
     /// Takes and returns 0-255 channels, matching Mako2D/Mako3D's color
     /// convention, so its result feeds straight into Mako3D.color(...).

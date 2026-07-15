@@ -1,0 +1,388 @@
+using Mako3D;
+using Inputs;
+using Players;
+using Audio;
+using Save;
+
+# MAKO BIKE SIMULATOR
+# 
+# Keyboard:
+# W / S       throttle and brake/reverse
+# A / D       steer and catch a fall
+# Space       rear brake / skid
+# E           put the bike back at the start
+# Escape      pause
+# 
+# Controller:
+# Left stick  throttle, steer, and balance
+# A           rear brake / skid
+# X           put the bike back at the start
+# Start       pause
+# 
+# Course:
+# Ride north through the pink gate, turn around, then return through the
+# gold gate. Your quickest lap is saved locally between runs.
+fn wheel_quaternion(angle_degrees) {
+    # A wheel is an oriented cylinder. This quaternion first puts its axle
+    # sideways, then turns it to follow the bike's heading.
+    half_yaw = angle_degrees * 0.008726646;
+    s = sin(half_yaw);
+    c = cos(half_yaw);
+    side = 0.70710678;
+    return [-side * s, side * s, -side * c, side * c];
+}
+
+fn draw_gate(z, color) {
+    Mako3D.cube(-6.6, 2.2, z, 0.25, 4.4, 0.25, color);
+    Mako3D.cube(6.6, 2.2, z, 0.25, 4.4, 0.25, color);
+    Mako3D.cube(0, 4.25, z, 13.5, 0.25, 0.25, color);
+}
+
+fn draw_tree(x, z) {
+    Mako3D.cylinder(x, 0, z, 0.18, 0.24, 2.2, Mako3D.BROWN);
+    Mako3D.sphere(x, 2.35, z, 0.9, Mako3D.color(35, 100, 50));
+    Mako3D.sphere(x + 0.35, 2.45, z, 0.65, Mako3D.LIME);
+}
+
+fn draw_cone(x, z, hit) {
+    color = Mako3D.ORANGE;
+    if hit {
+        color = Mako3D.RED;
+    }
+    Mako3D.cylinder(x, 0, z, 0.04, 0.32, 0.8, color);
+    Mako3D.cylinder(x, 0, z, 0.38, 0.38, 0.08, Mako3D.RAYWHITE);
+}
+
+fn draw_bike(x, y, z, heading, steer, lean, wheel_spin, speed) {
+    radians = heading * 0.017453292;
+    fx = sin(radians);
+    fz = cos(radians);
+    lx = cos(radians);
+    lz = -sin(radians);
+    half_base = 0.92;
+    rear_x = x - fx * half_base;
+    rear_z = z - fz * half_base;
+    front_x = x + fx * half_base;
+    front_z = z + fz * half_base;
+    wheel_y = y + 0.62;
+    rear_q = wheel_quaternion(heading);
+    front_q = wheel_quaternion(heading + steer * 25);
+    Mako3D.cylinder_rot_q(rear_x, wheel_y, rear_z, 0.62, 0.62, 0.24, rear_q[0], rear_q[1], rear_q[2], rear_q[3], Mako3D.DARKGRAY);
+    Mako3D.cylinder_rot_q(front_x, wheel_y, front_z, 0.62, 0.62, 0.24, front_q[0], front_q[1], front_q[2], front_q[3], Mako3D.DARKGRAY);
+    # The frame is built from the actual balance angle. As the bike falls its
+    # top moves sideways and downward instead of playing a canned lean.
+    lean_radians = lean * 0.017453292;
+    lean_offset = sin(lean_radians) * 1.15;
+    upright = max(0.12, cos(lean_radians));
+    top_x = x + lx * lean_offset;
+    top_z = z + lz * lean_offset;
+    crank_y = y + 0.78;
+    seat_y = wheel_y + 0.83 * upright;
+    handle_y = wheel_y + 0.93 * upright;
+    # Wheels, fork, frame triangle, seat, and handlebar.
+    Mako3D.line3d(rear_x, crank_y, rear_z, top_x, seat_y, top_z, Mako3D.SKYBLUE);
+    Mako3D.line3d(front_x, crank_y, front_z, top_x, seat_y, top_z, Mako3D.SKYBLUE);
+    Mako3D.line3d(rear_x, crank_y, rear_z, x, crank_y, z, Mako3D.SKYBLUE);
+    Mako3D.line3d(x, crank_y, z, front_x, crank_y, front_z, Mako3D.SKYBLUE);
+    Mako3D.line3d(front_x, wheel_y, front_z, front_x, handle_y, front_z, Mako3D.RAYWHITE);
+    Mako3D.line3d(top_x - lx * 0.35, seat_y, top_z - lz * 0.35, top_x + lx * 0.35, seat_y, top_z + lz * 0.35, Mako3D.DARKGRAY);
+    Mako3D.line3d(front_x - lx * 0.45, handle_y, front_z - lz * 0.45, front_x + lx * 0.45, handle_y, front_z + lz * 0.45, Mako3D.GOLD);
+    # A simple rider gives the lean a clear silhouette.
+    rider_x = top_x - fx * 0.18 + lx * sin(lean_radians) * 0.38;
+    rider_z = top_z - fz * 0.18 + lz * sin(lean_radians) * 0.38;
+    rider_y = wheel_y + 1.32 * upright;
+    rider_half = lean * 0.008726646;
+    rider_sin = sin(rider_half);
+    rider_cos = cos(rider_half);
+    Mako3D.capsule(rider_x, rider_y, rider_z, 0.24, 1.15, fx * rider_sin, 0, fz * rider_sin, rider_cos, Mako3D.PINK);
+    head_x = rider_x + lx * sin(lean_radians) * 0.68;
+    head_z = rider_z + lz * sin(lean_radians) * 0.68;
+    head_y = wheel_y + 2.28 * upright;
+    Mako3D.sphere(head_x, head_y, head_z, 0.32, Mako3D.RAYWHITE);
+    Mako3D.line3d(rider_x, rider_y + 0.15 * upright, rider_z, front_x, handle_y, front_z, Mako3D.PINK);
+}
+
+main() {
+    Mako3D.init(1100, 720, "MAKO Bike Simulator");
+    Mako3D.min_size(760, 520);
+    Mako3D.fps(60);
+    Save.open("mako-bike-simulator");
+    best_lap = Save.get("best_lap", 0);
+    checkpoint_sound = Audio.tone("sine", 740, 0.12);
+    lap_sound = Audio.melody("square", ["C5:0.25", "E5:0.25", "G5:0.25", "C6:0.6"], 220);
+    crash_sound = Audio.tone("noise", 100, 0.16);
+    cam = Mako3D.camera(0, 5, -62, 0, 1, -52, 58);
+    # Bike state. Heading zero faces north (+Z).
+    bike_x = 0;
+    bike_z = -52;
+    speed = 0;
+    heading = 0;
+    steer = 0;
+    # Balance is an unstable roll angle, not an animation target. A small
+    # initial tilt means the player has to begin correcting immediately.
+    lean = 4.5;
+    lean_velocity = 0;
+    fallen = false;
+    wheel_spin = 0;
+    ride_time = 0;
+    lap_time = 0;
+    lap = 0;
+    course_stage = 0;
+    paused = false;
+    message = "Ride through the pink gate, turn around, and come back!";
+    message_time = 6;
+    crash_cooldown = 0;
+    cone_x = [-2.2, 2.2, -2.2, 2.2, -2.2];
+    cone_z = [-28, -10, 8, 26, 42];
+    cone_hit = [false, false, false, false, false];
+    while Mako3D.running() {
+        dt = min(Mako3D.delta(), 0.05);
+        if Players.pressed(1, "pause") {
+            paused = !paused;
+        }
+        if Players.pressed(1, "action") {
+            bike_x = 0;
+            bike_z = -52;
+            speed = 0;
+            heading = 0;
+            steer = 0;
+            lean = 4.5;
+            lean_velocity = 0;
+            fallen = false;
+            course_stage = 0;
+            lap_time = 0;
+            message = "Bike reset at the gold gate";
+            message_time = 2;
+        }
+        if !paused {
+            ride_time = ride_time + dt;
+            lap_time = lap_time + dt;
+            crash_cooldown = max(0, crash_cooldown - dt);
+            message_time = max(0, message_time - dt);
+            throttle = -Players.y(1);
+            steer_input = Players.x(1);
+            rear_brake = Players.down(1, "jump");
+            if fallen {
+                throttle = 0;
+                steer_input = 0;
+                rear_brake = true;
+            }
+            # Engine force, braking, rolling resistance, and a small reverse.
+            acceleration = 0;
+            if throttle > 0.05 {
+                acceleration = throttle * 10.5 * (1 - max(speed, 0) / 22);
+            } else if throttle < -0.05 {
+                if speed > 0.5 {
+                    acceleration = throttle * 18;
+                } else {
+                    acceleration = throttle * 4.5;
+                }
+            }
+            off_road = abs(bike_x) > 7.4;
+            drag = 0.32 + abs(speed) * 0.055;
+            if off_road {
+                drag = drag + 3.8;
+            }
+            if rear_brake {
+                drag = drag + 7;
+            }
+            if speed > 0 {
+                speed = max(0, speed + (acceleration - drag) * dt);
+            } else if speed < 0 {
+                speed = min(0, speed + (acceleration + drag) * dt);
+            } else {
+                speed = speed + acceleration * dt;
+            }
+            speed = clamp(speed, -5, 22);
+            # Steering moves the contact patch under the falling bike. That
+            # same motion turns the bike, so balancing and cornering are one
+            # readable control instead of two unrelated systems.
+            steer = steer + (steer_input - steer) * min(8 * dt, 1);
+            turn_grip = min(abs(speed) / 4, 1);
+            turn_rate = steer * turn_grip * 68;
+            if rear_brake {
+                turn_rate = turn_rate * 1.45;
+            }
+            direction = 1;
+            if speed < 0 {
+                direction = -1;
+            }
+            heading = heading + turn_rate * direction * dt;
+            if !fallen {
+                # The bicycle is an inverted pendulum. Gravity always makes
+                # the current lean grow; there is deliberately no invisible
+                # force that returns it to zero. A/D moves the tire contact
+                # patch under the rider, so the player must steer toward a
+                # fall and then counter-steer before tipping the other way.
+                speed_stability = min(abs(speed) / 16, 1);
+                gravity_tip = sin(lean * 0.017453292) * 420;
+                tire_catch = -steer * (56 + abs(speed) * 2.15);
+                # Turning also throws the rider toward the outside. At speed,
+                # holding a turn without balancing into it will put the bike
+                # down even if it began perfectly upright.
+                corner_load = steer * speed * speed * 0.22;
+                road_wobble = sin(ride_time * 3.1) * (5.5 - speed_stability * 3.5);
+                roll_damping = -lean_velocity * (1.4 + speed_stability * 1.15);
+                lean_acceleration = gravity_tip + tire_catch + corner_load + road_wobble + roll_damping;
+                if rear_brake and abs(speed) > 7 {
+                    lean_acceleration = lean_acceleration + steer * abs(speed) * 4.2;
+                    lean_velocity = lean_velocity * 0.985;
+                }
+                if off_road {
+                    lean_acceleration = lean_acceleration + sin(ride_time * 25) * 18;
+                }
+                lean_velocity = lean_velocity + lean_acceleration * dt;
+                lean = lean + lean_velocity * dt;
+                # A large lean also unloads the tires and scrubs speed before
+                # the frame finally contacts the ground.
+                if abs(lean) > 28 {
+                    speed = speed * max(0.94, 1 - abs(lean) * 0.0015);
+                }
+                if abs(lean) > 48 {
+                    fallen = true;
+                    speed = speed * 0.55;
+                    Audio.play(crash_sound);
+                    message = "BIKE DOWN — press E / X to get back up";
+                    message_time = 30;
+                }
+            } else {
+                fall_target = 84;
+                if lean < 0 {
+                    fall_target = -84;
+                }
+                lean = lean + (fall_target - lean) * min(4.5 * dt, 1);
+                lean_velocity = 0;
+            }
+            radians = heading * 0.017453292;
+            forward_x = sin(radians);
+            forward_z = cos(radians);
+            bike_x = bike_x + forward_x * speed * dt;
+            bike_z = bike_z + forward_z * speed * dt;
+            wheel_spin = wheel_spin + speed * dt / 0.62;
+            # The field is open, but a soft boundary prevents the camera and
+            # bike from disappearing forever after a very enthusiastic turn.
+            if abs(bike_x) > 30 or abs(bike_z) > 72 {
+                bike_x = clamp(bike_x, -30, 30);
+                bike_z = clamp(bike_z, -72, 72);
+                speed = speed * 0.25;
+                message = "Course boundary — turn back toward the road";
+                message_time = 2;
+            }
+            # Slalom cones react to a hit without becoming invisible walls.
+            for i in range(len(cone_x)) {
+                dx = bike_x - cone_x[i];
+                dz = bike_z - cone_z[i];
+                if sqrt(dx * dx + dz * dz) < 0.85 and crash_cooldown <= 0 {
+                    cone_hit[i] = true;
+                    speed = speed * 0.35;
+                    lean_velocity = lean_velocity + (bike_x - cone_x[i]) * 24;
+                    crash_cooldown = 0.7;
+                    message = "Cone clipped! Keep the bike smooth.";
+                    message_time = 2;
+                    Audio.play(crash_sound);
+                }
+            }
+            # A lap is north gate → turn around → south gate.
+            if course_stage == 0 and bike_z > 56 {
+                course_stage = 1;
+                message = "Checkpoint! Turn around and ride back to gold.";
+                message_time = 4;
+                Audio.play(checkpoint_sound);
+            }
+            if course_stage == 1 and bike_z < -51 {
+                lap = lap + 1;
+                course_stage = 0;
+                Audio.play(lap_sound);
+                message = "Lap " + lap + " complete in " + round(lap_time * 10) / 10 + " seconds!";
+                message_time = 5;
+                if best_lap == 0 or lap_time < best_lap {
+                    best_lap = lap_time;
+                    Save.set("best_lap", best_lap);
+                    Save.unlock("course-finisher");
+                    message = "NEW BEST: " + round(best_lap * 10) / 10 + " seconds!";
+                }
+                lap_time = 0;
+                for i in range(len(cone_hit)) {
+                    cone_hit[i] = false;
+                }
+            }
+        }
+        # Suspension is subtle on asphalt and lively on grass.
+        suspension = sin(ride_time * (3 + abs(speed))) * 0.018;
+        if abs(bike_x) > 7.4 {
+            suspension = suspension + sin(ride_time * 28) * 0.055;
+        }
+        bike_y = suspension;
+        # A chase camera follows the bicycle model instead of taking control
+        # away from the player with Mako3D.update_camera().
+        cam_radians = heading * 0.017453292;
+        cam_fx = sin(cam_radians);
+        cam_fz = cos(cam_radians);
+        cam_x = bike_x - cam_fx * 8;
+        cam_z = bike_z - cam_fz * 8;
+        Mako3D.move_camera(cam, cam_x, 4.8, cam_z, bike_x + cam_fx * 3.2, 1.25, bike_z + cam_fz * 3.2);
+        Mako3D.begin();
+        Mako3D.sky(Mako3D.color(118, 190, 235));
+        Mako3D.begin_3d(cam);
+        # Grass, asphalt, lane markings, gates, cones, and trees make the
+        # course readable at speed without requiring external art assets.
+        Mako3D.plane(0, -0.04, 0, 70, 150, Mako3D.color(76, 142, 70));
+        Mako3D.plane(0, 0, 0, 15, 140, Mako3D.color(48, 51, 58));
+        for i in range(14) {
+            mark_z = -64 + i * 10;
+            Mako3D.cube(0, 0.025, mark_z, 0.16, 0.04, 4.8, Mako3D.RAYWHITE);
+        }
+        Mako3D.cube(-7.35, 0.03, 0, 0.18, 0.05, 140, Mako3D.GOLD);
+        Mako3D.cube(7.35, 0.03, 0, 0.18, 0.05, 140, Mako3D.GOLD);
+        draw_gate(-53, Mako3D.GOLD);
+        draw_gate(57, Mako3D.PINK);
+        for i in range(len(cone_x)) {
+            draw_cone(cone_x[i], cone_z[i], cone_hit[i]);
+        }
+        for i in range(8) {
+            tree_z = -58 + i * 17;
+            draw_tree(-12 - i % 2 * 3, tree_z);
+            draw_tree(12 + i % 2 * 3, tree_z + 7);
+        }
+        draw_bike(bike_x, bike_y, bike_z, heading, steer, lean, wheel_spin, speed);
+        Mako3D.end_3d();
+        speed_kmh = round(abs(speed) * 3.6);
+        Mako3D.text("MAKO BIKE SIMULATOR", 22, 18, 25, Mako3D.RAYWHITE);
+        Mako3D.text("Speed  " + speed_kmh + " km/h", 22, 52, 22, Mako3D.GOLD);
+        Mako3D.text("Lap " + lap + "   Time " + round(lap_time * 10) / 10 + "s", 22, 80, 18, Mako3D.RAYWHITE);
+        balance = max(0, 100 - round(abs(lean) / 48 * 100));
+        balance_color = Mako3D.LIME;
+        if balance < 60 {
+            balance_color = Mako3D.GOLD;
+        }
+        if balance < 25 {
+            balance_color = Mako3D.RED;
+        }
+        Mako3D.text("Balance  " + balance + "%", 22, 108, 18, balance_color);
+        if !fallen and abs(lean) > 7 {
+            catch_key = "D";
+            catch_side = "RIGHT";
+            if lean < 0 { catch_key = "A"; catch_side = "LEFT"; }
+            Mako3D.text("FALLING " + catch_side + " — TAP " + catch_key + ", THEN COUNTER-STEER", 22, 136, 18, balance_color);
+        }
+        if best_lap > 0 {
+            Mako3D.text("Best " + round(best_lap * 10) / 10 + "s", 22, 160, 17, Mako3D.LIME);
+        }
+        Mako3D.text("W/S: pedal + brake   A/D: steer + balance   SPACE: skid   E: reset", 22, Mako3D.height() - 34, 17, Mako3D.RAYWHITE);
+        if message_time > 0 {
+            Mako3D.text(message, 22, 190, 20, Mako3D.PINK);
+        }
+        if paused {
+            Mako3D.text("PAUSED", Mako3D.width() / 2 - 62, Mako3D.height() / 2 - 20, 36, Mako3D.GOLD);
+        }
+        if abs(bike_x) > 7.4 {
+            Mako3D.text("GRASS — less grip", Mako3D.width() - 210, 24, 18, Mako3D.ORANGE);
+        }
+        if fallen {
+            Mako3D.text("FALLEN", Mako3D.width() / 2 - 70, Mako3D.height() / 2 - 20, 38, Mako3D.RED);
+        }
+        Mako3D.draw_fps(Mako3D.width() - 100, Mako3D.height() - 34);
+        Mako3D.end();
+    }
+    Mako3D.close();
+}

@@ -1,0 +1,12 @@
+fn first(values: list<u8>) -> u8 {
+    return values[0];
+}
+
+main() {
+    bytes: list<u8> = [1, 256];
+    bytes[0] = 999;
+    wrong_keys: dict<string, i32> = {1: 20};
+    print bytes["zero"];
+    first(["not a byte"]);
+    print wrong_keys;
+}

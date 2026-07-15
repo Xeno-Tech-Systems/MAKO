@@ -73,6 +73,17 @@ Colors are `[r, g, b, a]` lists — you can build them by hand.
 Asset paths resolve relative to the script's own directory, so
 `Mako2D.load("assets/player.png")` works from anywhere.
 
+## Resizable windows
+
+Windows are resizable by default in v0.1.1. `width()` and `height()` always
+report the current size, `resized()` is true on the frame the user resized it,
+and `min_size(width, height)` prevents the window becoming too small. Pass
+`false` as the fourth `init` argument for a fixed window:
+
+```mako
+Mako2D.init(900, 600, "Game", false);
+```
+
 Spritesheet animation pattern:
 
 ```mako

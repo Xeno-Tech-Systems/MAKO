@@ -228,7 +228,50 @@ a remaining engineering task, and is left for whoever cuts the release.
 
 ## Long term
 
-- Compile to native binary via LLVM or QBE
+### Systems-language track (started)
+
+- [x] Opt-in typed variables with persistent assignment checking
+- [x] Typed function parameters and `->` return contracts
+- [x] Typed struct fields and struct-literal checking
+- [x] Fixed-width integer vocabulary with literal range validation
+- [x] Nested `list<T>` / `dict<K, V>` types with checked indexing and mutation
+- [x] Structured typed HIR shared by checker and future compiler backends
+- [x] Basic-block MIR with explicit conversions, storage, branches, and loop edges
+- [x] MIR structural validation before and after optimization
+- [x] Freestanding `mko check --kernel` profile for allocation-free typed modules
+- [x] C/assembly x86_64 reference kernel consuming the same future ABI
+- [x] Initial System V x86_64 instruction selection and calling convention lowering
+- [ ] ELF relocatable object emission for `.mko` modules
+- [x] Link and call the first MKO-generated function from the C kernel
+- [x] Sized volatile memory intrinsics for kernel/device access
+- [x] Direct VGA text-memory write from native MKO
+- [x] Move Multiboot2 usable-memory accounting policy into MKO
+- [x] Decode packed Multiboot2 memory-map entries directly through `vptr<T>`
+- [x] Native MKO 4 KiB physical frame bump allocator with overflow/exhaustion checks
+- [x] Native MKO four-level x86_64 page-table construction
+- [x] Activate MKO-built 4 KiB mappings through CR3 and verify memory access
+- [x] x86_64 IDT with assembly exception entry/return stubs
+- [x] Live breakpoint interrupt round-trip self-test
+- [x] Fatal page-fault diagnostics with CR2 and hardware error code
+- [x] MakoBox freestanding multi-applet kernel command dispatcher
+- [x] Legacy PIC remap and live 100 Hz PIT hardware interrupts
+- [x] PS/2 keyboard IRQ input and interactive MakoBox command prompt
+- [x] MakoBox `fetch` applet with live CPUID, memory, paging, frame, and timer data
+- [x] Size-optimized kernel C build and dead-section elimination
+- [x] Typed `vptr<T>` device pointers with scaled offsets and width checking
+- [ ] General pointers/references with lifetimes, provenance, and explicit mutability
+- [x] Constant/conversion folding, dead temporary removal, and unreachable blocks
+- [ ] Native instruction selection and object-file emission
+- [ ] Fixed-width runtime values instead of representing every number as `double`
+- [ ] Deterministic ownership/resource model and explicit `unsafe` boundaries
+- [ ] Pointers, slices, arrays, enums, tagged unions, and predictable struct layout
+- [ ] C ABI, inline assembly, and freestanding targets
+- [ ] Compile to native binary via LLVM, QBE, or a purpose-built backend
+- [ ] Self-host the compiler in MAKO
+- [ ] Build kernel and driver components in MAKO
+
+### Runtime and ecosystem
+
 - Embeddable as a scripting engine in C# / Rust applications ✅ — done: see
   `MakoHostContext`/`Interpreter.Run(source, baseDir)` in `Interpreter.cs`,
   a minimal generic host-embedding API (deliberately host-agnostic — no

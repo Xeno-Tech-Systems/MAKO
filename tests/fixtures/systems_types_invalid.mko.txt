@@ -1,0 +1,14 @@
+struct Port { number: u16, enabled: bool }
+
+fn next_port(port: u16) -> u16 {
+    return "not a port";
+}
+
+main() {
+    byte: u8 = 300;
+    port: Port = Port { number: "eighty", enabled: true };
+    port.number = "still wrong";
+    next_port("wrong");
+    print byte;
+    print port;
+}

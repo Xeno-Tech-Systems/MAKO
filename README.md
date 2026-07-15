@@ -123,6 +123,8 @@ All examples install globally. Run these from any directory:
 
 | Command                | What it is                                                               |
 | ---------------------- | ------------------------------------------------------------------------ |
+| `mko block_world.mko`  | LEGO-like 3D building sandbox — Roblox-style character, real block collisions, colors, controller tools, and an auto-saved world |
+| `mko bike_simulator.mko` | 3D bicycle time trial — active balance physics, falls, keyboard/gamepad steering, skids, chase camera, sound, and saved best laps |
 | `mko pong.mko`         | Pong vs an AI paddle — synth sound and positional audio                  |
 | `mko snake.mko`        | Snake — speeds up as you grow with pitch-shifting eat sound              |
 | `mko gem_hunter.mko`   | 3D arena collector — camera follow, patrol enemies, and audio navigation |
@@ -231,6 +233,10 @@ same target model and will arrive incrementally. See [Foundry](docs/foundry.md).
 | --------------- | ------------------------------------------------------------------------------------ |
 | `using Mako2D;` | 2D games: sprites, spritesheets, Camera2D, shapes, text                              |
 | `using Mako3D;` | 3D games: Camera3D, fly/orbit controls, cubes, spheres, models, grid — plus a spawn/draw_scene() object system so you stop hand-redrawing static geometry every frame |
+| `using Models;` | Load your `.glb` / `.obj` files once and draw them by a readable name |
+| `using Players;` | Local multiplayer for players 1–4 with keyboard defaults, gamepads, movement, and named actions |
+| `using Controllers;` | Named controller buttons, both sticks, connection checks, and controller names |
+| `using Save;` | Automatic local save data, settings, progress, and named unlockables |
 | `using Physics2D;` | Easy slimes plus advanced rigid bodies, oriented collision, stable stacks, adaptive substeps, sleeping, torque, contacts, and springs |
 | `using Physics3D;` | Easy 3D bodies and characters, primitive collision, rotation, friction, sleeping, and adaptive fast-body substeps |
 | `using Inputs;` | Unified input: keyboard, mouse, cursor lock, gamepad                                 |

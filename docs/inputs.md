@@ -47,6 +47,10 @@ UP DOWN LEFT RIGHT SHIFT CTRL ALT` (also `LSHIFT/RSHIFT` etc.) and
 
 ## Gamepad
 
+For local multiplayer, prefer the easier [`Players`](players.md) package. It
+uses player numbers, named actions, automatic keyboard controls, and gamepads
+without exposing raylib button indices.
+
 | Function | Description |
 |---|---|
 | `gamepad_ready(pad)` | Controller connected? |

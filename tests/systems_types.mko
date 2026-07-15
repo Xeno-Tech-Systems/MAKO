@@ -1,0 +1,48 @@
+# Typed MAKO remains executable by the current interpreter while `mko check`
+# validates the contracts that a future native compiler will consume.
+struct Pixel { r: u8, g: u8, b: u8 }
+
+fn clamp(value: i32, minimum: i32, maximum: i32) -> i32 {
+    if value < minimum {
+        return minimum;
+    }
+    if value > maximum {
+        return maximum;
+    }
+    return value;
+}
+
+fn brightness(pixel: Pixel) -> f64 {
+    return (pixel.r + pixel.g + pixel.b) / 3;
+}
+
+fn validate_channel(value: u8) -> none {
+    assert(value <= 255, "u8 channel");
+}
+
+fn first(values: list<u8>) -> u8 {
+    return values[0];
+}
+
+fn table_first(table: dict<string, list<u8>>, key: string) -> u8 {
+    return table[key][0];
+}
+
+main() {
+    red: u8 = 255;
+    red = 200;
+    pixel: Pixel = Pixel { r: red, g: 80, b: 40 };
+    callback: fn = fn(value) => value + 1;
+    bytes: list<u8> = [10, 20, 30];
+    bytes[1] = 64;
+    table: dict<string, list<u8>> = {"boot": bytes};
+    assert(clamp(120, 0, 100) == 100, "typed function call");
+    assert(brightness(pixel) > 0, "typed struct fields");
+    assert(callback(4) == 5, "function type");
+    validate_channel(pixel.r);
+    assert(first(bytes) == 10, "typed list index");
+    assert(table_first(table, "boot") == 10, "nested generic types");
+    for byte in bytes {
+        assert(byte <= 255, "typed loop item");
+    }
+}

@@ -1,48 +1,20 @@
 namespace Mako;
 
-/// One issue found by `mko check` — always a warning, never a hard error.
-/// MAKO stays dynamically typed; nothing here blocks a script from running.
+/// One issue found by `mko check`. The command exits non-zero when issues are
+/// present, so typed MAKO can use it as a compile-time gate while untyped
+/// scripts remain fully backwards compatible.
 record CheckIssue(int Line, string Message);
 
-/// `mko check file.mko` — a lint pass over the parsed AST. Three
-/// low-false-positive rules, chosen deliberately narrow for a first
-/// version: type-hint mismatches, unused local variables, and unreachable
-/// code after return/break/continue. Undefined-variable-use was left out
-/// on purpose — it needs real scope/closure tracking to avoid false
-/// positives, and a lint tool that cries wolf gets ignored.
+/// `mko check file.mko` combines the opt-in systems type checker with two
+/// low-false-positive lint rules: unused locals and unreachable code after
+/// return/break/continue. Undefined-variable-use remains a runtime diagnostic
+/// until scope and closure analysis can report it without false positives.
 static class Checker
 {
-    // Literal-value AST nodes whose runtime type is knowable without
-    // evaluating anything — enough to catch an obviously wrong hint like
-    // `age: number = "thirty";` without attempting real type inference.
-    private static string? LiteralTypeName(Expr expr) => expr switch
-    {
-        StringLit or TemplateStringExpr => "string",
-        NumberLit => "number",
-        BoolLit => "bool",
-        NullLit => "none",
-        ListLit => "list",
-        DictLit => "dict",
-        _ => null, // anything else (calls, identifiers, arithmetic, ...) is not checked
-    };
-
-    // Hint spellings accepted as aliases for the same runtime type, since
-    // MAKO doesn't reserve "number"/"string"/etc. as keywords — a script
-    // author could write "int" or "str" and mean the same thing. Kept
-    // small and explicit rather than guessing at every possible spelling.
-    private static readonly Dictionary<string, string> TypeAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["int"] = "number", ["float"] = "number", ["double"] = "number", ["number"] = "number",
-        ["str"] = "string", ["string"] = "string",
-        ["bool"] = "bool", ["boolean"] = "bool",
-        ["list"] = "list", ["array"] = "list",
-        ["dict"] = "dict", ["map"] = "dict", ["object"] = "dict",
-        ["none"] = "none", ["null"] = "none",
-    };
-
     public static List<CheckIssue> Check(ProgramNode program)
     {
         var issues = new List<CheckIssue>();
+        SystemsTypeChecker.Check(program, issues);
         CheckFunctionBody(program.Body, issues);
         foreach (var fn in program.Functions)
             CheckFunctionBody(fn.Body, issues);
@@ -55,7 +27,7 @@ static class Checker
         CheckUnusedLocals(body, issues);
     }
 
-    // ── Type-hint mismatches + unreachable code ─────────────────────────────
+    // ── Unreachable code ────────────────────────────────────────────────────
 
     private static void CheckBlock(List<Statement> block, List<CheckIssue> issues)
     {
@@ -74,9 +46,6 @@ static class Checker
 
             switch (stmt)
             {
-                case AssignStmt { TypeHint: not null } a:
-                    CheckHint(a.Name, a.TypeHint, a.Value, a.Line, issues);
-                    break;
                 case ReturnStmt or BreakStmt or ContinueStmt:
                     sawTerminator = true;
                     break;
@@ -96,17 +65,6 @@ static class Checker
                     break;
             }
         }
-    }
-
-    private static void CheckHint(string name, string hint, Expr value, int line, List<CheckIssue> issues)
-    {
-        string? actual = LiteralTypeName(value);
-        if (actual == null) return; // not a literal — can't check without real inference
-
-        string expected = TypeAliases.GetValueOrDefault(hint, hint.ToLowerInvariant());
-        if (expected != actual)
-            issues.Add(new CheckIssue(line,
-                $"'{name}: {hint}' but the value assigned is a {actual}"));
     }
 
     // ── Unused local variables ───────────────────────────────────────────────
@@ -208,7 +166,9 @@ static class Checker
             case LogicalExpr lo: UseExpr(lo.Left, used); UseExpr(lo.Right, used); break;
             case UnaryExpr u: UseExpr(u.Operand, used); break;
             case InputExpr inp: UseExpr(inp.Prompt, used); break;
-            case CallExpr c: foreach (var a in c.Args) UseExpr(a, used); break;
+            // A call may resolve to a variable holding a lambda, so the
+            // callee name itself is a read as well as each argument.
+            case CallExpr c: used.Add(c.Name); foreach (var a in c.Args) UseExpr(a, used); break;
             case NamespacedCallExpr nc: foreach (var a in nc.Args) UseExpr(a, used); break;
             case LambdaExpr lam: CollectUses(lam.Body, used); break;
         }

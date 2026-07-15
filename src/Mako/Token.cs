@@ -23,7 +23,8 @@ enum TokenType
     Const,
     Using, Use, From,
     Try, Catch, Throw,
-    Arrow,   // =>
+    Arrow,       // => (lambda expression)
+    ThinArrow,   // -> (function return type)
 
     // Operators
     Assign,   // =

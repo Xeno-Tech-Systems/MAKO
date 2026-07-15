@@ -15,6 +15,21 @@ unsafe sealed class ImGuiRaylibController : IDisposable
     private uint _fontTexId;
     private bool _disposed;
 
+    // name -> loaded ImGui fonts at each requested pixel size, so a script
+    // can push_font("Body", 18) and get back the same handle every call
+    // instead of re-adding the TTF to the atlas each time.
+    private readonly Dictionary<(string name, int size), ImFontPtr> _fonts = new();
+    private readonly Dictionary<string, string> _fontPaths = new();
+
+    // Default text size in pixels, settable via MakoUI.set_default_font_size().
+    // FontGlobalScale is recomputed against this every frame relative to the
+    // window's size at attach-time, so text grows/shrinks when the window
+    // (or, embedded, the whole game window) is resized instead of staying
+    // pixel-locked while every other widget scales.
+    public float DefaultFontSize { get; set; } = 16f;
+    private readonly int _baseWidth;
+    private readonly int _baseHeight;
+
     public ImGuiRaylibController()
     {
         _ctx = ImGui.CreateContext();
@@ -24,12 +39,43 @@ unsafe sealed class ImGuiRaylibController : IDisposable
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
         io.DisplaySize = new Vector2(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
         io.DeltaTime = 1f / 60f;
+        io.FontGlobalScale = 1f;
 
+        _baseWidth = Raylib.GetScreenWidth();
+        _baseHeight = Raylib.GetScreenHeight();
+
+        BuildDefaultFont();
+        UploadFontAtlas();
+    }
+
+    private void BuildDefaultFont()
+    {
+        var io = ImGui.GetIO();
+        var cfg = ImGuiNative.ImFontConfig_ImFontConfig();
+        cfg->SizePixels = DefaultFontSize;
+        io.Fonts.AddFontDefault(new ImFontConfigPtr(cfg));
+        ImGuiNative.ImFontConfig_destroy(cfg);
+    }
+
+    /// Sets the base widget text size (pixels) and rebuilds the atlas so it
+    /// takes effect immediately. Call before or after MakoUI.attach() —
+    /// either way every widget drawn from the next frame on uses the new size.
+    public void SetDefaultFontSize(float size)
+    {
+        DefaultFontSize = size;
+        ImGui.GetIO().Fonts.Clear();
+        _fonts.Clear(); // custom fonts are lazily rebuilt on their next GetOrAddFont() call
+        BuildDefaultFont();
         UploadFontAtlas();
     }
 
     private void UploadFontAtlas()
     {
+        if (_fontTexId != 0)
+        {
+            Rlgl.UnloadTexture(_fontTexId);
+            _fontTexId = 0;
+        }
         var io = ImGui.GetIO();
         io.Fonts.GetTexDataAsRGBA32(out byte* pixels, out int width, out int height);
         _fontTexId = Rlgl.LoadTexture(pixels, width, height, PixelFormat.UncompressedR8G8B8A8, 1);
@@ -37,12 +83,52 @@ unsafe sealed class ImGuiRaylibController : IDisposable
         io.Fonts.ClearTexData();
     }
 
+    /// Registers a TTF file under `name` for later use by push_font(), and
+    /// loads it once at `defaultSize` so there's always at least one usable
+    /// size immediately after loading.
+    public void LoadFont(string name, string path, int defaultSize)
+    {
+        if (!File.Exists(path))
+            throw new MakoError($"Font.load(): file not found: '{path}'");
+        _fontPaths[name] = path;
+        GetOrAddFont(name, defaultSize);
+    }
+
+    /// Returns the ImFont for (name, size), building it into the atlas (and
+    /// re-uploading the atlas texture) the first time this exact size is
+    /// requested for this font.
+    public ImFontPtr GetOrAddFont(string name, int size)
+    {
+        if (_fonts.TryGetValue((name, size), out var existing)) return existing;
+        if (!_fontPaths.TryGetValue(name, out var path))
+            throw new MakoError($"Font '{name}' wasn't loaded — call Font.load(\"{name}\", \"file.ttf\") first");
+
+        var io = ImGui.GetIO();
+        var font = io.Fonts.AddFontFromFileTTF(path, size);
+        _fonts[(name, size)] = font;
+        UploadFontAtlas();
+        return font;
+    }
+
+    public void PushFont(string name, int size) => ImGui.PushFont(GetOrAddFont(name, size));
+    public void PopFont() => ImGui.PopFont();
+
     /// Call once per frame, before issuing any ImGui.* widget calls.
     public void NewFrame()
     {
         var io = ImGui.GetIO();
-        io.DisplaySize = new Vector2(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
+        int w = Raylib.GetScreenWidth();
+        int h = Raylib.GetScreenHeight();
+        io.DisplaySize = new Vector2(w, h);
         io.DeltaTime = Raylib.GetFrameTime() > 0 ? Raylib.GetFrameTime() : 1f / 60f;
+
+        // Text (and every other ImGui metric, since everything is derived
+        // from font size) scales with how much the window has grown/shrunk
+        // since MakoUI.attach() — smaller of the two axes so text never
+        // overflows a window stretched unevenly in one direction.
+        float scaleX = _baseWidth > 0 ? (float)w / _baseWidth : 1f;
+        float scaleY = _baseHeight > 0 ? (float)h / _baseHeight : 1f;
+        io.FontGlobalScale = Math.Min(scaleX, scaleY);
 
         io.MousePos = Raylib.GetMousePosition();
         io.MouseDown[0] = Raylib.IsMouseButtonDown(MouseButton.Left);

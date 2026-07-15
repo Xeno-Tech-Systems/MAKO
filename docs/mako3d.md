@@ -30,6 +30,10 @@ Lifecycle (`init fps running begin end close delta get_fps width height
 title draw_fps`) and colors (`color`, `fade`, 21 named constants) work
 exactly like [Mako2D](mako2d.md).
 
+Windows are resizable by default. Use `resized()` to react to a size change,
+`width()` / `height()` for the live dimensions, and `min_size(w, h)` for a
+minimum. `init(800, 600, "Game", false)` creates a fixed-size window.
+
 `clear(color)` fills the frame before drawing, same as Mako2D. `sky(color)`
 is an alias for the same call, named for when you're filling a 3D scene's
 backdrop rather than a 2D canvas — the two are interchangeable:
@@ -67,6 +71,11 @@ Everything between `begin_3d(cam)` and `end_3d()` renders in 3D; text and
 | `point3d(x,y,z, color)` | Single point |
 
 ## Models
+
+For normal games, the v1.1 [`Models`](models.md) package is shorter and keeps
+readable names: `Models.load("hero", "hero.glb")` then
+`Models.draw("hero", x, y, z)`. The handle API below remains available for
+advanced code.
 
 | Function | Description |
 |---|---|

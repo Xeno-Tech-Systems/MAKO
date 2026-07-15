@@ -39,6 +39,46 @@
     ]
   },
   {
+    "name": "Models",
+    "kind": "native",
+    "status": "available",
+    "description": "Readable named .glb and .obj loading for 3D games. Turns on Mako3D automatically.",
+    "usage": "using Models;",
+    "docs": "docs/models.md"
+  },
+  {
+    "name": "Players",
+    "kind": "native",
+    "status": "available",
+    "description": "Local multiplayer for players 1-4 with keyboard defaults, automatic gamepads, movement axes, and named actions.",
+    "usage": "using Players;",
+    "docs": "docs/players.md"
+  },
+  {
+    "name": "Controllers",
+    "kind": "native",
+    "status": "available",
+    "description": "Named gamepad buttons, both sticks, controller names, and connection checks for players 1-4.",
+    "usage": "using Controllers;",
+    "docs": "docs/controllers.md"
+  },
+  {
+    "name": "Save",
+    "kind": "native",
+    "status": "available",
+    "description": "Automatic per-user local save data, settings, progress, and named unlockables.",
+    "usage": "using Save;",
+    "docs": "docs/save.md"
+  },
+  {
+    "name": "ANIX",
+    "kind": "native",
+    "status": "available",
+    "description": "Build safe ANIX Plan v1 JSON for Abora system configuration without privileged access.",
+    "usage": "using ANIX;",
+    "docs": "docs/anix.md"
+  },
+  {
     "name": "Physics2D",
     "kind": "native",
     "status": "available",

@@ -184,9 +184,16 @@ public class Interpreter
     private bool    _physics2DActive;
     private bool    _physics3DActive;
     private bool    _inputsActive;
+    private bool    _modelsActive;
+    private bool    _playersActive;
+    private bool    _controllersActive;
+    private bool    _saveActive;
+    private bool    _anixActive;
     private bool    _audioActive;
     private bool    _netActive;
+    private bool    _roomActive;
     private bool    _systemActive;
+    private bool    _fontActive;
     public  List<string> ScriptArgs { get; set; } = [];
 
     /// The embedding host's context, if this interpreter was constructed by
@@ -254,12 +261,19 @@ public class Interpreter
             bool hadWindow = _rayActive || _ray2DActive || _ray3DActive;
             if (_ray2DActive) MakoRay2D.UnloadAll();
             if (_ray3DActive) MakoRay3D.UnloadAll();
+            MakoModels.Reset();
+            MakoSave.Reset();
+            MakoAnix.Reset();
             if (_audioActive) MakoAudio.UnloadAll();
+            if (_roomActive) MakoRoom.UnloadAll();
             if (_physics2DActive) MakoPhysics2D.ResetAll();
             if (_physics3DActive) MakoPhysics3D.ResetAll();
             if (hadWindow && MakoRay.IsWindowReady())
                 MakoRay.CloseWindow();
             _rayActive = _ray2DActive = _ray3DActive = _physics2DActive = _physics3DActive = _audioActive = false;
+            _modelsActive = _playersActive = false;
+            _controllersActive = _saveActive = false;
+            _anixActive = false;
         }
     }
 
@@ -349,6 +363,25 @@ public class Interpreter
                     _ray3DActive = true;
                 }
 
+                if (pkg.Name.Equals("Models", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (var (k, v) in MakoRay3D.Colors) SetVar($"Mako3D.{k}", v);
+                    _modelsActive = true;
+                    _ray3DActive = true;
+                }
+
+                if (pkg.Name.Equals("Players", StringComparison.OrdinalIgnoreCase))
+                    _playersActive = true;
+
+                if (pkg.Name.Equals("Controllers", StringComparison.OrdinalIgnoreCase))
+                    _controllersActive = true;
+
+                if (pkg.Name.Equals("Save", StringComparison.OrdinalIgnoreCase))
+                    _saveActive = true;
+
+                if (pkg.Name.Equals("ANIX", StringComparison.OrdinalIgnoreCase))
+                    _anixActive = true;
+
                 if (pkg.Name.Equals("Physics2D", StringComparison.OrdinalIgnoreCase))
                     _physics2DActive = true;
 
@@ -381,8 +414,14 @@ public class Interpreter
                 if (pkg.Name.Equals("Net", StringComparison.OrdinalIgnoreCase))
                     _netActive = true;
 
+                if (pkg.Name.Equals("Room", StringComparison.OrdinalIgnoreCase))
+                    _roomActive = true;
+
                 if (pkg.Name.Equals("System", StringComparison.OrdinalIgnoreCase))
                     _systemActive = true;
+
+                if (pkg.Name.Equals("Font", StringComparison.OrdinalIgnoreCase))
+                    _fontActive = true;
 
                 continue;
             }
@@ -1018,6 +1057,8 @@ public class Interpreter
         // MakoUI — style & themes
         "MakoUI.push_color", "MakoUI.pop_color", "MakoUI.push_var", "MakoUI.pop_var",
         "MakoUI.theme_dark", "MakoUI.theme_light", "MakoUI.theme_mako",
+        // MakoUI — fonts
+        "MakoUI.push_font", "MakoUI.pop_font", "MakoUI.set_default_font_size",
         // MakoRay — lifecycle
         "MakoRay.init", "MakoRay.fps", "MakoRay.running", "MakoRay.begin", "MakoRay.end",
         "MakoRay.close", "MakoRay.delta", "MakoRay.get_fps", "MakoRay.get_time",
@@ -1780,6 +1821,18 @@ public class Interpreter
                 RequireArity(name, args, 0);
                 EnsureUI(name); result = (object?)_ui!.WantsKeyboard(); return true;
 
+            case "MakoUI.push_font":
+                RequireArity(name, args, 2);
+                EnsureUI(name); _ui!.PushFont(Stringify(args[0]), (int)AsNum(name, args[1])); result = null; return true;
+
+            case "MakoUI.pop_font":
+                RequireArity(name, args, 0);
+                EnsureUI(name); _ui!.PopFont(); result = null; return true;
+
+            case "MakoUI.set_default_font_size":
+                RequireArity(name, args, 1);
+                EnsureUI(name); _ui!.SetDefaultFontSize((float)AsNum(name, args[0])); result = null; return true;
+
             case "MakoUI.color_picker":
                 if (args.Count != 4) throw new MakoError("MakoUI.color_picker() expects (label, r, g, b)");
                 EnsureUI(name);
@@ -1825,6 +1878,46 @@ public class Interpreter
                         { result = fn3d(args); return true; }
                     throw new MakoError($"Mako3D.{fn3}() wasn't found");
                 }
+                if (name.StartsWith("Models.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_modelsActive) throw new MakoError($"{name}() requires 'using Models;'");
+                    var fn = name["Models.".Length..];
+                    if (MakoModels.Funcs.TryGetValue(fn, out var modelFn))
+                        { result = modelFn(args); return true; }
+                    throw new MakoError($"Models.{fn}() wasn't found");
+                }
+                if (name.StartsWith("Players.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_playersActive) throw new MakoError($"{name}() requires 'using Players;'");
+                    var fn = name["Players.".Length..];
+                    if (MakoPlayers.Funcs.TryGetValue(fn, out var playerFn))
+                        { result = playerFn(args); return true; }
+                    throw new MakoError($"Players.{fn}() wasn't found");
+                }
+                if (name.StartsWith("Controllers.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_controllersActive) throw new MakoError($"{name}() requires 'using Controllers;'");
+                    var fn = name["Controllers.".Length..];
+                    if (MakoControllers.Funcs.TryGetValue(fn, out var controllerFn))
+                        { result = controllerFn(args); return true; }
+                    throw new MakoError($"Controllers.{fn}() wasn't found");
+                }
+                if (name.StartsWith("Save.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_saveActive) throw new MakoError($"{name}() requires 'using Save;'");
+                    var fn = name["Save.".Length..];
+                    if (MakoSave.Funcs.TryGetValue(fn, out var saveFn))
+                        { result = saveFn(args); return true; }
+                    throw new MakoError($"Save.{fn}() wasn't found");
+                }
+                if (name.StartsWith("ANIX.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_anixActive) throw new MakoError($"{name}() requires 'using ANIX;'");
+                    var fn = name["ANIX.".Length..];
+                    if (MakoAnix.Funcs.TryGetValue(fn, out var anixFn))
+                        { result = anixFn(args); return true; }
+                    throw new MakoError($"ANIX.{fn}() wasn't found");
+                }
                 if (name.StartsWith("Physics2D.", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!_physics2DActive) throw new MakoError($"{name}() requires 'using Physics2D;'");
@@ -1864,6 +1957,22 @@ public class Interpreter
                     if (MakoNet.Funcs.TryGetValue(fnN, out var fnNe))
                         { result = fnNe(args); return true; }
                     throw new MakoError($"Net.{fnN}() wasn't found");
+                }
+                if (name.StartsWith("Room.", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_roomActive) throw new MakoError($"{name}() requires 'using Room;'");
+                    var fnR = name["Room.".Length..];
+                    if (MakoRoom.Funcs.TryGetValue(fnR, out var fnRo))
+                        { result = fnRo(args); return true; }
+                    throw new MakoError($"Room.{fnR}() wasn't found");
+                }
+                if (name.Equals("Font.load", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_fontActive) throw new MakoError($"{name}() requires 'using Font;'");
+                    if (args.Count < 2 || args.Count > 3) throw new MakoError("Font.load() expects (name, path [, default_size])");
+                    EnsureUI(name);
+                    _ui!.LoadFont(Stringify(args[0]), Stringify(args[1]), args.Count > 2 ? (int)AsNum(name, args[2]) : 16);
+                    result = null; return true;
                 }
                 if (name.StartsWith("System.", StringComparison.OrdinalIgnoreCase))
                 {

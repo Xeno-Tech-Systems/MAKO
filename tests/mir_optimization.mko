@@ -1,0 +1,14 @@
+# Exercises constant/conversion folding and unreachable-block elimination in
+# the MIR optimizer while remaining a normal interpreter regression test.
+fn folded_choice() -> i32 {
+    if 2 + 2 == 4 {
+        return 7;
+    } else {
+        return 9;
+    }
+}
+
+main() {
+    result: i32 = folded_choice();
+    assert(result == 7, "optimized control flow preserves behavior");
+}

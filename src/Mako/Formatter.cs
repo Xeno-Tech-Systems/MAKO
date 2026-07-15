@@ -102,7 +102,10 @@ static class Formatter
             foreach (var sd in p.Structs)
             {
                 if (sd.Line > 0) FlushCommentsBefore(sd.Line);
-                Line($"struct {sd.Name} {{ {string.Join(", ", sd.Fields)} }}");
+                var fields = sd.Fields.Select(field => sd.FieldTypes.TryGetValue(field, out var type)
+                    ? $"{field}: {type}"
+                    : field);
+                Line($"struct {sd.Name} {{ {string.Join(", ", fields)} }}");
             }
             if (p.Structs.Count > 0) Blank();
 
@@ -131,8 +134,10 @@ static class Formatter
 
         private void PrintFn(FnDecl fn)
         {
-            var paramList = string.Join(", ", fn.Params);
-            _sb.Append($"{Pad}fn {fn.Name}({paramList}) ");
+            var paramList = string.Join(", ", fn.Params.Select(param =>
+                fn.ParamTypes.TryGetValue(param, out var type) ? $"{param}: {type}" : param));
+            var returnType = fn.ReturnType != null ? $" -> {fn.ReturnType}" : "";
+            _sb.Append($"{Pad}fn {fn.Name}({paramList}){returnType} ");
             PrintBlock(fn.Body);
         }
 

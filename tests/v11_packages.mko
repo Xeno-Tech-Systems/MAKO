@@ -1,0 +1,36 @@
+using Models;
+using Players;
+using Controllers;
+using Save;
+
+main() {
+    assert(!Models.has("missing"), "Models.has is false before a named model is loaded");
+    assert(Players.connected(1), "player one always has keyboard controls");
+    assert(Players.connected(2), "player two always has keyboard controls");
+
+    caught = false;
+    try { Players.connected(5); }
+    catch err { caught = contains(err, "1 to 4"); }
+    assert(caught, "Players explains the valid player-number range");
+
+    # Controller calls stay safe even when no controller is connected.
+    Controllers.connected(1);
+    assert(Controllers.name(1) == "" or len(Controllers.name(1)) > 0, "controller name is always a string");
+
+    # Saves are local, persistent JSON data with unlockables built in.
+    Save.open("mako-v11-tests");
+    Save.clear();
+    Save.set("score", 42);
+    Save.set("settings", {"volume": 0.5, "fullscreen": false});
+    assert(Save.get("score") == 42, "save values round-trip");
+    assert(Save.get("missing", "fallback") == "fallback", "save get supports a default");
+    assert(Save.get("settings")["volume"] == 0.5, "save data supports dictionaries");
+    Save.unlock("purple_hat");
+    Save.unlock("purple_hat");
+    assert(Save.unlocked("purple_hat"), "unlockables persist by name");
+    assert(len(Save.unlocks()) == 1, "unlocking twice does not duplicate an unlock");
+    assert(contains(Save.path(), "mako-v11-tests.json"), "save path is local and game-specific");
+    Save.clear();
+
+    print "MAKO v1.1 package tests pass!";
+}

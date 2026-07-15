@@ -39,6 +39,8 @@ static class MakoRay
         int w     = args.Count > 0 ? (int)Convert.ToDouble(args[0]) : 800;
         int h     = args.Count > 1 ? (int)Convert.ToDouble(args[1]) : 600;
         string t  = args.Count > 2 ? args[2]?.ToString() ?? "MAKO" : "MAKO";
+        bool resizable = args.Count <= 3 || Convert.ToBoolean(args[3]);
+        if (resizable) Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
         Raylib.InitWindow(w, h, t);
         // Disable raylib's built-in ESC-to-quit: scripts decide when to exit.
         // (A stray ESC event on window focus was closing windows instantly.)
@@ -92,6 +94,9 @@ static class MakoRay
 
     public static object? GetHeight(List<object?> _) =>
         (object?)(double)Raylib.GetScreenHeight();
+
+    public static object? Resized(List<object?> _) => Raylib.IsWindowResized();
+    public static object? MinSize(List<object?> a) { Raylib.SetWindowMinSize((int)Convert.ToDouble(a[0]), (int)Convert.ToDouble(a[1])); return null; }
 
     public static object? SetTitle(List<object?> args)
     {
@@ -348,6 +353,8 @@ static class MakoRay
         ["get_time"]    = GetTime,
         ["width"]       = GetWidth,
         ["height"]      = GetHeight,
+        ["resized"]     = Resized,
+        ["min_size"]    = MinSize,
         ["title"]       = SetTitle,
         // Drawing
         ["clear"]       = Clear,

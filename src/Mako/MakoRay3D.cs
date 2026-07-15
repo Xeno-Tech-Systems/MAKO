@@ -43,6 +43,8 @@ static class MakoRay3D
         int w    = a.Count > 0 ? (int)Convert.ToDouble(a[0]) : 800;
         int h    = a.Count > 1 ? (int)Convert.ToDouble(a[1]) : 600;
         string t = a.Count > 2 ? a[2]?.ToString() ?? "Mako3D" : "Mako3D";
+        bool resizable = a.Count <= 3 || Convert.ToBoolean(a[3]);
+        if (resizable) Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
         Raylib.InitWindow(w, h, t);
         // Disable raylib's built-in ESC-to-quit: scripts decide when to exit.
         // (A stray ESC event on window focus was closing windows instantly.)
@@ -62,6 +64,8 @@ static class MakoRay3D
     public static object? GetFps(List<object?> _)   => (object?)(double)Raylib.GetFPS();
     public static object? Width(List<object?> _)    => (object?)(double)Raylib.GetScreenWidth();
     public static object? Height(List<object?> _)   => (object?)(double)Raylib.GetScreenHeight();
+    public static object? Resized(List<object?> _)  => Raylib.IsWindowResized();
+    public static object? MinSize(List<object?> a)  { Raylib.SetWindowMinSize((int)Convert.ToDouble(a[0]), (int)Convert.ToDouble(a[1])); return null; }
     public static object? SetTitle(List<object?> a) { Raylib.SetWindowTitle(a.Count > 0 ? a[0]?.ToString() ?? "" : ""); return null; }
     public static object? DrawFps(List<object?> a)  { Raylib.DrawFPS(a.Count > 0 ? (int)Convert.ToDouble(a[0]) : 10, a.Count > 1 ? (int)Convert.ToDouble(a[1]) : 10); return null; }
 
@@ -1476,6 +1480,7 @@ static class MakoRay3D
         ["end"]          = End,           ["close"]        = Close,
         ["delta"]        = Delta,         ["get_fps"]      = GetFps,
         ["width"]        = Width,         ["height"]       = Height,
+        ["resized"]      = Resized,       ["min_size"]     = MinSize,
         ["title"]        = SetTitle,      ["draw_fps"]     = DrawFps,
         ["camera"]       = MakeCamera,    ["move_camera"]  = MoveCamera,
         ["orbit_camera"] = OrbitCamera,  ["update_camera"]= UpdateCamera,

@@ -1,0 +1,50 @@
+using Models;
+using Players;
+
+# MODEL PARTY — local multiplayer with a model you provide.
+# Run: mko model_party.mko path/to/model.glb
+# Player 1: WASD + Space. Player 2: arrows + Enter.
+# Gamepads work automatically as players 1–4.
+main() {
+    files = args();
+    if len(files) == 0 {
+        print "Give me a .glb or .obj: mko model_party.mko my-model.glb";
+        return;
+    }
+    Mako3D.init(1000, 650, "MAKO Model Party");
+    Mako3D.fps(60);
+    Models.load("player", files[0]);
+    cam = Mako3D.camera(0, 14, 18, 0, 0, 0);
+    p1 = [-3, 0];
+    p2 = [3, 0];
+    p1_jump = 0;
+    p2_jump = 0;
+    while Mako3D.running() {
+        dt = Mako3D.delta();
+        p1[0] = p1[0] + Players.x(1) * 6 * dt;
+        p1[1] = p1[1] + Players.y(1) * 6 * dt;
+        p2[0] = p2[0] + Players.x(2) * 6 * dt;
+        p2[1] = p2[1] + Players.y(2) * 6 * dt;
+        if Players.pressed(1, "jump") {
+            p1_jump = 1;
+        }
+        if Players.pressed(2, "jump") {
+            p2_jump = 1;
+        }
+        p1_jump = max(0, p1_jump - dt * 2.5);
+        p2_jump = max(0, p2_jump - dt * 2.5);
+        p1[0] = clamp(p1[0], -9, 9);
+        p1[1] = clamp(p1[1], -6, 6);
+        p2[0] = clamp(p2[0], -9, 9);
+        p2[1] = clamp(p2[1], -6, 6);
+        Mako3D.begin();
+        Mako3D.sky(Mako3D.color(20, 15, 38));
+        Mako3D.begin_3d(cam);
+        Mako3D.grid(20, 1);
+        Models.draw("player", p1[0], p1_jump, p1[1], 1, Mako3D.SKYBLUE);
+        Models.draw("player", p2[0], p2_jump, p2[1], 1, Mako3D.PINK);
+        Mako3D.end_3d();
+        Mako3D.text("P1: WASD + SPACE     P2: ARROWS + ENTER", 22, 20, 22, Mako3D.WHITE);
+        Mako3D.end();
+    }
+}

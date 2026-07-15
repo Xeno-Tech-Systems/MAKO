@@ -4,6 +4,11 @@ namespace Mako;
 
 record FnDecl(string Name, List<string> Params, List<Statement> Body)
 {
+    /// Optional types for parameters that opt into MAKO's static checker.
+    /// Untyped parameters remain dynamic for backwards compatibility.
+    public Dictionary<string, string> ParamTypes { get; init; } = new(StringComparer.Ordinal);
+    /// Optional checked return type (`fn f() -> i32`).
+    public string? ReturnType { get; init; }
     /// File the function was loaded from via 'use', or null for the main script.
     public string? Source { get; set; }
     /// Source line of the 'fn' keyword, for the formatter.
@@ -13,6 +18,9 @@ record FnDecl(string Name, List<string> Params, List<Statement> Body)
 /// struct Name { field, field, ... }
 record StructDecl(string Name, List<string> Fields)
 {
+    /// Optional field types. A struct may mix typed and dynamic fields while
+    /// code is being migrated to typed MAKO.
+    public Dictionary<string, string> FieldTypes { get; init; } = new(StringComparer.Ordinal);
     public int Line { get; set; }
 }
 

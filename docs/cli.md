@@ -32,6 +32,50 @@ mko fmt script.mko --check    # exit 1 if the file needs formatting
 AST-based: normalizes indentation (4 spaces), spacing, and brace style.
 Preserves standalone comments and template strings exactly.
 
+## Static analysis and compiler IR
+
+```bash
+mko check script.mko          # static types plus lint checks
+mko check script.mko --kernel # enforce the freestanding kernel subset
+mko ir script.mko          # print typed high-level IR to stdout
+mko mir script.mko         # print basic-block middle IR to stdout
+mko mir script.mko --opt   # validate and optimize before printing
+mko native script.mko --kernel -o module.S # emit freestanding x86_64 assembly
+```
+
+`mko ir` parses and type-checks the program, then lowers it to `mako.hir 1`.
+The output includes normalized bindings, typed expressions, function
+signatures, struct layouts, collection operations, and structured control-flow
+regions. It is intended for compiler/backend development and can be redirected
+to a file for inspection. Programs with static type errors are not lowered.
+
+`mko mir` performs the next lowering stage. `mako.mir 1` contains flat basic
+blocks, typed temporaries, explicit local/global allocation, loads, stores,
+numeric and collection conversions, branches, loop back-edges, iterator
+operations, exception edges, and terminators. This is the representation meant
+to feed optimization and native instruction selection. `--opt` folds constant
+arithmetic, comparisons, conversions, and constant branches, then removes dead
+pure temporaries and unreachable blocks. MIR is structurally validated before
+and after optimization.
+
+`--kernel` adds a deliberately narrow freestanding profile. Kernel functions
+must have explicit integer, boolean, or `none` signatures; locals must be typed
+when first declared; and code may call user-defined functions or explicit
+freestanding intrinsics. Host
+packages, allocation-backed collections, strings, exceptions, shell/process
+features, and dynamic values are rejected. This profile is the contract for
+the native kernel backend while object emission is being built.
+
+`mko native` lowers optimized MIR to System V AMD64 assembly. The initial
+backend covers the kernel profile's scalar stack values, arithmetic,
+comparisons, branches, loops, returns, and calls with up to six arguments.
+It also lowers volatile/typed-pointer memory operations and `abi_syscall0`
+through `abi_syscall5` directly, including the MAKO-ABI `r10` fourth argument.
+Local `use "module.mko"` dependencies are recursively resolved, checked, and
+emitted as namespaced native symbols in the same output file.
+Assemble the output with an ELF-capable assembler and link the resulting object
+into a freestanding image.
+
 ## Tests
 
 ```bash
@@ -39,10 +83,13 @@ mko test              # run every *.mko file under ./tests/
 mko test some/dir      # or a custom directory
 ```
 
-Each test file is a normal MAKO script that uses `assert(cond, msg)`. A file
-**passes** if it runs to completion; it **fails** if any assertion throws (or
-any other error occurs), printing the message and line number. Exit code is
-`0` only if every file passed — wire it into CI as-is.
+Each test file is a normal MAKO script that uses `assert(cond, msg)`. Before
+execution, the runner type-checks and lowers both the original and formatted
+source, then validates and optimizes both forms and verifies that formatting
+produces identical typed HIR, MIR, and optimized MIR. A file
+**passes** if those compiler checks and execution all complete; it **fails**
+if any check or assertion fails. Exit code is `0` only if every file passed —
+wire it into CI as-is.
 
 ```
 PASS  tests/lists.mko

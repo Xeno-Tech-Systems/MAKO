@@ -1,0 +1,347 @@
+using Mako3D;
+using Physics3D;
+using Inputs;
+using Players;
+using Controllers;
+using Save;
+using Audio;
+
+# BLOCK WORLD
+# A tiny LEGO-like building game made entirely in MAKO.
+# 
+# Move:          WASD / left stick
+# Jump:          Space / controller A
+# Place block:   Left click, E, or controller X
+# Remove block:  Right click, R, or controller B
+# Camera:        Middle-drag, Z/X, or right stick
+# Block color:   1–6 or controller shoulders
+# Reset player:  Backspace
+# Clear save:    Delete (press twice)
+fn block_color(index) {
+    if index == 0 {
+        return Mako3D.RED;
+    }
+    if index == 1 {
+        return Mako3D.GOLD;
+    }
+    if index == 2 {
+        return Mako3D.LIME;
+    }
+    if index == 3 {
+        return Mako3D.SKYBLUE;
+    }
+    if index == 4 {
+        return Mako3D.PURPLE;
+    }
+    return Mako3D.PINK;
+}
+
+fn color_name(index) {
+    if index == 0 {
+        return "Red brick";
+    }
+    if index == 1 {
+        return "Gold brick";
+    }
+    if index == 2 {
+        return "Green brick";
+    }
+    if index == 3 {
+        return "Blue brick";
+    }
+    if index == 4 {
+        return "Purple brick";
+    }
+    return "Pink brick";
+}
+
+fn block_exists(blocks, x, y, z) {
+    for block in blocks {
+        if block["x"] == x and block["y"] == y and block["z"] == z {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn find_block(blocks, body) {
+    for block in blocks {
+        if block["body"] == body {
+            return block;
+        }
+    }
+    return none;
+}
+
+fn add_block(world, blocks, x, y, z, color) {
+    if block_exists(blocks, x, y, z) or len(blocks) >= 500 {
+        return false;
+    }
+    body = Physics3D.static_box(world, x, y, z, 1, 1, 1);
+    Physics3D.material(world, body, 0, 0.8);
+    push(blocks, {"body": body, "x": x, "y": y, "z": z, "color": color});
+    return true;
+}
+
+fn remove_block(world, blocks, body) {
+    kept = [];
+    removed = false;
+    for block in blocks {
+        if block["body"] == body {
+            Physics3D.remove_body(world, body);
+            removed = true;
+        } else {
+            push(kept, block);
+        }
+    }
+    return [kept, removed];
+}
+
+fn save_blocks(blocks) {
+    data = [];
+    for block in blocks {
+        push(data, {
+                "x": block["x"],
+                "y": block["y"],
+                "z": block["z"],
+                "color": block["color"]
+            });
+    }
+    Save.set("blocks", data);
+}
+
+fn add_starter_world(world, blocks) {
+    # A colorful spawn pad.
+    for x in range(-3, 4) {
+        for z in range(-3, 4) {
+            color = (x + z + 12) % 6;
+            add_block(world, blocks, x, 0.5, z, color);
+        }
+    }
+    # Stairs teach that every block is a real character collider.
+    for step in range(5) {
+        for x in range(3) {
+            add_block(world, blocks, 7 + x, 0.5 + step, -5 + step, step % 6);
+        }
+    }
+    # A small arch and a floating platform invite editing immediately.
+    for y in range(4) {
+        add_block(world, blocks, -8, 0.5 + y, 5, 3);
+        add_block(world, blocks, -4, 0.5 + y, 5, 3);
+    }
+    for x in range(-8, -3) {
+        add_block(world, blocks, x, 4.5, 5, 1);
+    }
+    for x in range(-2, 3) {
+        for z in range(10, 14) {
+            add_block(world, blocks, x, 3.5, z, 4);
+        }
+    }
+}
+
+main() {
+    Mako3D.init(1100, 720, "MAKO Block World");
+    Mako3D.min_size(780, 520);
+    Mako3D.fps(60);
+    Save.open("mako-block-world");
+    place_sound = Audio.tone("square", 520, 0.05);
+    remove_sound = Audio.tone("triangle", 220, 0.07);
+    jump_sound = Audio.tone("sine", 680, 0.06);
+    world = Physics3D.world(0, -18, 0);
+    ground = Physics3D.floor(world);
+    Physics3D.material(world, ground, 0, 0.85);
+    blocks = [];
+    saved = Save.get("blocks", none);
+    if saved == none or len(saved) == 0 {
+        add_starter_world(world, blocks);
+        save_blocks(blocks);
+    } else {
+        for block in saved {
+            add_block(world, blocks, block["x"], block["y"], block["z"], block["color"]);
+        }
+    }
+    player = Physics3D.character(world, 0, 3, -8);
+    Physics3D.character_tune(world, player, 7, 8.5, 0.38);
+    cam = Mako3D.camera(8, 7, -14, 0, 1.5, -8, 58);
+    camera_yaw = 35;
+    camera_distance = 8.5;
+    camera_height = 5;
+    selected_color = 3;
+    target = none;
+    aimed_body = none;
+    message = "Welcome! Build anything you can imagine.";
+    message_time = 5;
+    clear_armed = false;
+    clear_time = 0;
+    while Mako3D.running() {
+        dt = min(Mako3D.delta(), 0.05);
+        message_time = max(0, message_time - dt);
+        clear_time = max(0, clear_time - dt);
+        if clear_time == 0 {
+            clear_armed = false;
+        }
+        # Camera rotation works with mouse, keyboard, or a controller's right
+        # stick. Nothing here needs raw gamepad button numbers.
+        if Inputs.mouse_down("middle") {
+            camera_yaw = camera_yaw + Inputs.mouse_delta_x() * 0.3;
+            camera_height = clamp(camera_height - Inputs.mouse_delta_y() * 0.04, 2.5, 9);
+        }
+        if Inputs.key_down("Z") {
+            camera_yaw = camera_yaw - 90 * dt;
+        }
+        if Inputs.key_down("X") {
+            camera_yaw = camera_yaw + 90 * dt;
+        }
+        if Controllers.connected(1) {
+            camera_yaw = camera_yaw + Controllers.right_x(1) * 105 * dt;
+        }
+        camera_distance = clamp(camera_distance - Inputs.scroll() * 0.7, 4.5, 14);
+        # Movement is relative to the camera, like a third-person building
+        # game. Players keeps keyboard and controller on the same short path.
+        yaw_radians = camera_yaw * 0.017453292;
+        forward_x = sin(yaw_radians);
+        forward_z = cos(yaw_radians);
+        right_x = cos(yaw_radians);
+        right_z = -sin(yaw_radians);
+        input_x = Players.x(1);
+        input_forward = -Players.y(1);
+        move_x = right_x * input_x + forward_x * input_forward;
+        move_z = right_z * input_x + forward_z * input_forward;
+        Physics3D.character_move(world, player, move_x, move_z);
+        if Players.pressed(1, "jump") {
+            if Physics3D.character_jump(world, player) {
+                Audio.play(jump_sound);
+            }
+        }
+        Physics3D.step(world, dt);
+        info = Physics3D.character_info(world, player);
+        # Recover from falling out of something the player just deleted.
+        fell_out = info != none and info["y"] < -12;
+        if fell_out or Inputs.key_pressed("BACKSPACE") {
+            Physics3D.remove_character(world, player);
+            player = Physics3D.character(world, 0, 4, -8);
+            Physics3D.character_tune(world, player, 7, 8.5, 0.38);
+            message = "Returned to spawn";
+            message_time = 2;
+        }
+        # The camera follows after physics so it never trails one frame behind.
+        info = Physics3D.character_info(world, player);
+        if info != none {
+            cam_x = info["x"] - forward_x * camera_distance;
+            cam_z = info["z"] - forward_z * camera_distance;
+            Mako3D.move_camera(cam, cam_x, info["y"] + camera_height, cam_z, info["x"], info["y"] + 0.8, info["z"]);
+        }
+        # Raycast through the cursor. The hit normal tells placement which
+        # neighboring grid cell the player is pointing at.
+        ray = Mako3D.mouse_ray(cam);
+        hit = Physics3D.raycast(world, ray[0], ray[1], ray[2], ray[3], ray[4], ray[5], 18);
+        target = none;
+        aimed_body = none;
+        if hit != none {
+            aimed_body = hit["body"];
+            tx = round(hit["x"] + hit["nx"] * 0.55);
+            ty = floor(hit["y"] + hit["ny"] * 0.55) + 0.5;
+            tz = round(hit["z"] + hit["nz"] * 0.55);
+            target = [tx, ty, tz];
+        }
+        # Number keys and shoulders cycle through six toy-brick colors.
+        for number in range(1, 7) {
+            if Inputs.key_pressed("" + number) {
+                selected_color = number - 1;
+            }
+        }
+        if Controllers.pressed(1, "r1") {
+            selected_color = (selected_color + 1) % 6;
+        }
+        if Controllers.pressed(1, "l1") {
+            selected_color = (selected_color + 5) % 6;
+        }
+        place_pressed = Inputs.mouse_pressed("left") or Players.pressed(1, "action");
+        remove_pressed = Inputs.mouse_pressed("right") or Inputs.key_pressed("R") or Controllers.pressed(1, "b");
+        if place_pressed and target != none and info != none {
+            too_close = dist3d(info["x"], info["y"], info["z"], target[0], target[1], target[2]) < 1.35;
+            if too_close {
+                message = "That brick is too close to your character";
+                message_time = 2;
+            } else if add_block(world, blocks, target[0], target[1], target[2], selected_color) {
+                save_blocks(blocks);
+                Audio.play(place_sound);
+                message = color_name(selected_color) + " placed  ·  " + len(blocks) + "/500";
+                message_time = 1.5;
+            } else {
+                message = "That grid space is already filled";
+                message_time = 1.5;
+            }
+        }
+        if remove_pressed and aimed_body != none and aimed_body != ground {
+            result = remove_block(world, blocks, aimed_body);
+            blocks = result[0];
+            if result[1] {
+                save_blocks(blocks);
+                Audio.play(remove_sound);
+                message = "Brick removed  ·  " + len(blocks) + "/500";
+                message_time = 1.5;
+            }
+        }
+        # Destructive save clearing needs two presses, keeping the common path
+        # friendly without making an accidental key press expensive.
+        if Inputs.key_pressed("DELETE") {
+            if clear_armed {
+                Save.clear();
+                message = "World save cleared — restart for a fresh starter world";
+                message_time = 5;
+                clear_armed = false;
+            } else {
+                clear_armed = true;
+                clear_time = 3;
+                message = "Press Delete again to clear your saved world";
+                message_time = 3;
+            }
+        }
+        Mako3D.begin();
+        Mako3D.sky(Mako3D.color(117, 190, 239));
+        Mako3D.begin_3d(cam);
+        # Toy-like baseplate and a few block-built clouds.
+        Mako3D.plane(0, -0.02, 0, 90, 90, Mako3D.color(83, 154, 74));
+        Mako3D.grid(45, 1);
+        Mako3D.cube(-13, 13, 8, 5, 1.2, 2, Mako3D.RAYWHITE);
+        Mako3D.cube(-10, 13.5, 8, 3, 1, 2, Mako3D.RAYWHITE);
+        Mako3D.cube(13, 16, 18, 6, 1.2, 2, Mako3D.RAYWHITE);
+        for block in blocks {
+            Mako3D.cube(block["x"], block["y"], block["z"], 1, 1, 1, block_color(block["color"]));
+            # A small stud gives every cube the LEGO-like toy silhouette.
+            Mako3D.cylinder(block["x"], block["y"] + 0.5, block["z"], 0.23, 0.23, 0.13, block_color(block["color"]));
+        }
+        if target != none and !block_exists(blocks, target[0], target[1], target[2]) {
+            Mako3D.wire_cube(target[0], target[1], target[2], 1.06, 1.06, 1.06, block_color(selected_color));
+        }
+        aimed_block = find_block(blocks, aimed_body);
+        if aimed_block != none {
+            Mako3D.wire_cube(aimed_block["x"], aimed_block["y"], aimed_block["z"], 1.08, 1.08, 1.08, Mako3D.GOLD);
+        }
+        if info != none {
+            # A deliberately blocky avatar: legs, torso, arms, and head.
+            px = info["x"];
+            py = info["y"];
+            pz = info["z"];
+            Mako3D.cube(px - 0.18, py - 0.55, pz, 0.28, 0.7, 0.34, Mako3D.SKYBLUE);
+            Mako3D.cube(px + 0.18, py - 0.55, pz, 0.28, 0.7, 0.34, Mako3D.SKYBLUE);
+            Mako3D.cube(px, py + 0.05, pz, 0.72, 0.75, 0.38, Mako3D.PINK);
+            Mako3D.cube(px - 0.52, py + 0.05, pz, 0.24, 0.72, 0.28, Mako3D.GOLD);
+            Mako3D.cube(px + 0.52, py + 0.05, pz, 0.24, 0.72, 0.28, Mako3D.GOLD);
+            Mako3D.cube(px, py + 0.72, pz, 0.55, 0.55, 0.55, Mako3D.GOLD);
+        }
+        Mako3D.end_3d();
+        Mako3D.text("MAKO BLOCK WORLD", 22, 18, 26, Mako3D.RAYWHITE);
+        Mako3D.text(color_name(selected_color) + "  ·  " + len(blocks) + "/500 bricks", 23, 53, 19, Mako3D.DARKGRAY);
+        Mako3D.text(color_name(selected_color) + "  ·  " + len(blocks) + "/500 bricks", 22, 52, 19, block_color(selected_color));
+        Mako3D.text("WASD: move   SPACE: jump   LEFT/E: place   RIGHT/R: remove   1–6: color", 22, Mako3D.height() - 34, 17, Mako3D.RAYWHITE);
+        Mako3D.text("+", Mako3D.width() / 2 - 5, Mako3D.height() / 2 - 12, 24, Mako3D.RAYWHITE);
+        if message_time > 0 {
+            Mako3D.text(message, 22, 82, 18, Mako3D.GOLD);
+        }
+        Mako3D.draw_fps(Mako3D.width() - 100, 20);
+        Mako3D.end();
+    }
+    Mako3D.close();
+}

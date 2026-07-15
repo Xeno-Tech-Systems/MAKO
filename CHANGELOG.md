@@ -4,6 +4,59 @@ All notable changes to MAKO are recorded here.
 
 ---
 
+## [0.1.1] — in development
+
+### Added
+
+**Easy local multiplayer.** The new `using Players;` native package gives
+players 1–4 the same `x`, `y`, `down`, and `pressed` API. Players 1 and 2 have
+keyboard controls by default, while connected gamepads work alongside them.
+An idle or virtual controller no longer disables keyboard movement for its
+player. Actions use names such as `"jump"` and `"pause"` instead of raw
+controller button numbers.
+
+**Readable 3D model games.** The new `using Models;` package loads `.glb` and
+`.obj` assets under names chosen by the game. `Models.load("hero",
+"hero.glb")` and `Models.draw("hero", x, y, z)` replace numeric model handles
+on the common path and turn on Mako3D automatically. The lower-level Mako3D
+model API remains available.
+
+**Model Party example.** `examples/model_party.mko` accepts a model path from
+the command line and creates a two-player 3D playground with keyboard and
+automatic gamepad controls.
+
+**Controllers and local saves.** `using Controllers;` exposes both sticks,
+controller names, and readable buttons such as `"jump"`, `"pause"`, and
+`"l1"`. `using Save;` stores JSON-safe progress and settings in a per-user,
+per-game local file with automatic atomic writes. Named unlockables use
+`Save.unlock()` and `Save.unlocked()` without requiring a custom save format.
+
+**Resizable game windows.** MakoRay, Mako2D, and Mako3D windows are resizable
+by default. `resized()`, live `width()` / `height()`, and `min_size()` make
+responsive layouts short; a fourth `false` argument to `init` keeps a window
+fixed when a game requires it.
+
+**Bike Simulator example.** `examples/bike_simulator.mko` is a complete 3D
+north-and-back time trial built from MAKO primitives. It combines keyboard and
+automatic gamepad controls through `Players`, speed-sensitive steering and
+active balance physics, braking and reverse, skids, grass drag, suspension
+motion, slalom cone collisions, a chase camera, synthesized sounds, resizable
+HUD placement, and a best lap stored locally with `Save`. The bicycle's roll is
+an unstable physical state with angular velocity: counter-steering catches a
+fall, speed gives limited stability, rough ground and impacts disturb it, and a
+large roll angle puts the bike and rider on the ground until reset.
+
+**Block World example.** `examples/block_world.mko` is a LEGO-like 3D building
+sandbox with a Roblox-style third-person character. Every placed brick creates
+a real static Physics3D collider; camera raycasts and hit-face normals make
+placement snap to the neighboring grid cell. The game includes place/remove
+tools, six colors, brick studs, stairs and platforms, jumping, mouse and
+controller camera controls, a blocky avatar, safe respawning, a 500-brick
+limit, generated sounds, and automatic local world saving without persisting
+runtime physics handles.
+
+---
+
 ## [0.1.0] — 2026-07-10 — first official release
 
 ### Added
